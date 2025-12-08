@@ -200,4 +200,45 @@ export const homeStyles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+   // RECENT EXPENSES
+  recentCard: {
+    marginBottom: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 20,
+    backgroundColor: "rgba(15, 23, 42, 0.9)",
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.25)",
+  },
+  recentRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(15, 23, 42, 0.9)",
+  },
+  recentLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  recentTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#F9FAFB",
+  },
+  recentMeta: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    marginTop: 2,
+  },
+  recentAmount: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#F97316",
+  },
+  recentEmptyText: {
+    fontSize: 12,
+    color: "#9CA3AF",
+  },
 });

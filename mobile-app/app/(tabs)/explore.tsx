@@ -1,9 +1,9 @@
-// app/explore.tsx
+// app/(tabs)/explore.tsx
 import React, { useMemo } from "react";
 import { SafeAreaView, ScrollView, View } from "react-native";
-import { useExpenses } from "../../src/context/ExpensesContext";
 import { Ionicons } from "@expo/vector-icons";
 
+import { useExpenses } from "../../src/context/ExpensesContext";
 import { ThemedText as Text } from "@/components/themed-text";
 import { ThemedView as Card } from "@/components/themed-view";
 import { analyticsStyles as styles } from "../../src/styles/analyticsStyles";
@@ -19,7 +19,15 @@ export default function AnalyticsPage() {
   const thisYear = now.getFullYear();
   const thisMonth = now.getMonth(); // 0–11
 
-  // 1) Filter this month's expenses
+  const categoryIcons: Record<string, any> = {
+    Food: "fast-food-outline",
+    Travel: "airplane-outline",
+    Shopping: "bag-handle-outline",
+    Bills: "document-text-outline",
+    Other: "ellipsis-horizontal-circle-outline",
+  };
+
+  // 1) This month expenses
   const monthExpenses = useMemo(
     () =>
       expenses.filter((e) => {
@@ -40,7 +48,6 @@ export default function AnalyticsPage() {
       map.set(e.category, prev + e.amount);
     }
 
-    // convert to array & sort desc
     const arr = Array.from(map.entries())
       .map(([category, amount]) => ({ category, amount }))
       .sort((a, b) => b.amount - a.amount);
@@ -101,28 +108,39 @@ export default function AnalyticsPage() {
                   ? Math.round((item.amount / monthTotal) * 100)
                   : 0;
 
+              const iconName =
+                categoryIcons[item.category] || "ellipse-outline";
+
               return (
                 <View key={item.category} style={styles.row}>
-                  {/* left: category + amount */}
+                  {/* icon + category + amount */}
                   <View style={styles.rowHeader}>
-                    <Text style={styles.categoryName}>{item.category}</Text>
+                    <View style={styles.rowHeaderLeft}>
+                      <Ionicons
+                        name={iconName}
+                        size={16}
+                        color="#22C55E"
+                      />
+                      <Text style={styles.categoryName}>{item.category}</Text>
+                    </View>
+
                     <Text style={styles.categoryAmount}>
                       {formatCurrency(item.amount, "LKR")}
                     </Text>
                   </View>
 
-                  {/* middle: bar */}
+                  {/* bar */}
                   <View style={styles.barBackground}>
                     <View
                       style={[
                         styles.barFill,
-                        { width: `${Math.max(pct, 4)}%` }, // min width to be visible
+                        { width: `${Math.max(pct, 4)}%` },
                       ]}
                     />
                   </View>
 
-                  {/* right: percentage */}
-                  <Text style={styles.percentLabel}>{pct}%</Text>
+                  {/* percentage pill */}
+                  <Text style={styles.percentPill}>{pct}%</Text>
                 </View>
               );
             })}

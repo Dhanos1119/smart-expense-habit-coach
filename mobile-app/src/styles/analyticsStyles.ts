@@ -15,7 +15,7 @@ export const analyticsStyles = StyleSheet.create({
     paddingBottom: 40,
   },
 
-  // header
+  // HEADER
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -41,7 +41,7 @@ export const analyticsStyles = StyleSheet.create({
     alignItems: "center",
   },
 
-  // summary card
+  // SUMMARY CARD
   summaryCard: {
     paddingVertical: 20,
     paddingHorizontal: 18,
@@ -74,24 +74,36 @@ export const analyticsStyles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  // chart card
+  // CHART CARD
   chartCard: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: "rgba(15, 23, 42, 0.95)",
+    paddingVertical: 20,
+    paddingHorizontal: 18,
+    borderRadius: 24,
+    backgroundColor: "rgba(15, 23, 42, 0.85)",
     borderWidth: 1,
-    borderColor: "rgba(148, 163, 184, 0.3)",
+    borderColor: "rgba(148, 163, 184, 0.18)",
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
   },
 
   row: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   rowHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 4,
   },
+  rowHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 6,
+  },
+
   categoryName: {
     fontSize: 14,
     fontWeight: "600",
@@ -107,6 +119,7 @@ export const analyticsStyles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "rgba(31, 41, 55, 0.9)",
     overflow: "hidden",
+    marginTop: 4,
   },
   barFill: {
     height: "100%",
@@ -114,14 +127,19 @@ export const analyticsStyles = StyleSheet.create({
     backgroundColor: "#22C55E",
   },
 
-  percentLabel: {
-    fontSize: 11,
-    color: "#9CA3AF",
-    marginTop: 4,
+  percentPill: {
     alignSelf: "flex-end",
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: "rgba(34, 197, 94, 0.12)",
+    color: "#4ADE80",
+    fontSize: 12,
+    fontWeight: "600",
   },
 
-  // empty state
+  // EMPTY STATE
   emptyCard: {
     paddingVertical: 24,
     paddingHorizontal: 18,

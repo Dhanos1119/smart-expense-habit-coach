@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   View,
   SafeAreaView,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -20,7 +21,7 @@ function formatCurrency(amount: number, currency: string) {
 }
 
 export default function HomePage() {
-  const { expenses, monthTotal } = useExpenses();
+  const { expenses, monthTotal, clearAllExpenses } = useExpenses();
 
   // ---- filter: this month / all time ----
   const [filter, setFilter] = useState<"month" | "all">("month");
@@ -92,6 +93,9 @@ export default function HomePage() {
 
   const hasExpenses = expenses.length > 0;
 
+  // 🔹 last 5 expenses
+  const recentExpenses = useMemo(() => expenses.slice(0, 5), [expenses]);
+
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView
@@ -104,47 +108,36 @@ export default function HomePage() {
             <Text style={styles.greeting}>Hello, {user.name} 👋</Text>
             <Text style={styles.subGreeting}>{user.message}</Text>
           </View>
-          <TouchableOpacity style={styles.profileButton}>
-            <Ionicons name="person-circle-outline" size={32} color="#fff" />
-          </TouchableOpacity>
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            {/* small reset icon – dev use only */}
+          
+            <TouchableOpacity style={styles.profileButton}>
+              <Ionicons name="person-circle-outline" size={32} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* EXPENSE SUMMARY CARD */}
         <Card style={[styles.card, styles.expenseCard]}>
           {/* title + filter chips */}
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 8,
-            }}
-          >
+          <View style={styles.cardHeaderRow}>
             <Text style={styles.cardTitle}>
               {filter === "month" ? "Month to Date" : "All-time Spend"}
             </Text>
 
-            <View style={{ flexDirection: "row", gap: 6 }}>
+            <View style={styles.filterRow}>
               <TouchableOpacity
                 onPress={() => setFilter("month")}
                 style={[
-                  {
-                    paddingHorizontal: 10,
-                    paddingVertical: 4,
-                    borderRadius: 999,
-                    borderWidth: 1,
-                    borderColor: "#4b5563",
-                  },
-                  filter === "month" && {
-                    backgroundColor: "#22c55e22",
-                    borderColor: "#22c55e",
-                  },
+                  styles.filterChip,
+                  filter === "month" && styles.filterChipActive,
                 ]}
               >
                 <Text
                   style={[
-                    { fontSize: 12, color: "#9ca3af" },
-                    filter === "month" && { color: "#e5e7eb", fontWeight: "600" },
+                    styles.filterChipText,
+                    filter === "month" && styles.filterChipTextActive,
                   ]}
                 >
                   This month
@@ -154,23 +147,14 @@ export default function HomePage() {
               <TouchableOpacity
                 onPress={() => setFilter("all")}
                 style={[
-                  {
-                    paddingHorizontal: 10,
-                    paddingVertical: 4,
-                    borderRadius: 999,
-                    borderWidth: 1,
-                    borderColor: "#4b5563",
-                  },
-                  filter === "all" && {
-                    backgroundColor: "#22c55e22",
-                    borderColor: "#22c55e",
-                  },
+                  styles.filterChip,
+                  filter === "all" && styles.filterChipActive,
                 ]}
               >
                 <Text
                   style={[
-                    { fontSize: 12, color: "#9ca3af" },
-                    filter === "all" && { color: "#e5e7eb", fontWeight: "600" },
+                    styles.filterChipText,
+                    filter === "all" && styles.filterChipTextActive,
                   ]}
                 >
                   All time
@@ -216,7 +200,7 @@ export default function HomePage() {
         <View style={styles.actionsContainer}>
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => router.push("/add-expense")}
+            onPress={() => router.push("/(tabs)/add-expense")}
           >
             <View style={[styles.actionIcon, { backgroundColor: "#E3F2FD" }]}>
               <Ionicons name="add" size={24} color="#2196F3" />
@@ -263,7 +247,7 @@ export default function HomePage() {
               <View style={styles.habitInfo}>
                 <Text style={styles.habitTitle}>{habit.title}</Text>
                 <Text style={styles.habitStreak}>
-                  {habit.streak} day streak 🔥
+                  {habit.streak} day streak
                 </Text>
               </View>
 
@@ -275,6 +259,74 @@ export default function HomePage() {
             </View>
           ))}
         </View>
+
+        {/* RECENT EXPENSES HEADER WITH DELETE ICON */}
+<View
+  style={{
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  }}
+>
+  <Text style={styles.sectionTitle}>Recent expenses</Text>
+
+  {/* TRASH DELETE BUTTON */}
+  <TouchableOpacity
+    onPress={() => {
+      Alert.alert(
+        "Delete all expenses?",
+        "This will remove all your expenses permanently.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: () => clearAllExpenses(),
+          },
+        ]
+      );
+    }}
+    style={{
+    borderRadius: 12,
+      padding: 8,
+   }}
+  >
+    <Ionicons name="trash-outline" size={25} color="#bd2020ff" />
+  </TouchableOpacity>
+</View>
+
+
+        <Card style={styles.recentCard}>
+          {recentExpenses.length === 0 ? (
+            <Text style={styles.recentEmptyText}>
+              No expenses recorded yet. Add your first one!
+            </Text>
+          ) : (
+            recentExpenses.map((e) => (
+              <TouchableOpacity
+                key={e.id}
+                style={styles.recentRow}
+                onPress={() =>
+                  router.push({
+                    pathname: "/expense/[id]",
+                    params: { id: e.id },
+                  })
+                }
+              >
+                <View style={styles.recentLeft}>
+                  <Text style={styles.recentTitle}>{e.title}</Text>
+                  <Text style={styles.recentMeta}>
+                    {e.category} • {e.date}
+                  </Text>
+                </View>
+                <Text style={styles.recentAmount}>
+                  LKR {e.amount.toLocaleString("en-LK")}
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
+        </Card>
       </ScrollView>
     </SafeAreaView>
   );
