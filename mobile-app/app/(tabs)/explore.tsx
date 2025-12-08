@@ -1,15 +1,42 @@
 // app/(tabs)/explore.tsx
 import React, { useMemo } from "react";
 import { SafeAreaView, ScrollView, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-
 import { useExpenses } from "../../src/context/ExpensesContext";
+import { Ionicons } from "@expo/vector-icons";
+import Svg, { G, Path } from "react-native-svg";
+
 import { ThemedText as Text } from "@/components/themed-text";
 import { ThemedView as Card } from "@/components/themed-view";
 import { analyticsStyles as styles } from "../../src/styles/analyticsStyles";
 
 function formatCurrency(amount: number, currency: string) {
   return `${currency} ${amount.toLocaleString("en-LK")}`;
+}
+
+// 🔹 Colors for categories
+const chartColors = [
+  "#60A5FA", // blue
+  "#F472B6", // pink
+  "#34D399", // green
+  "#FACC15", // yellow
+  "#F87171", // red
+];
+
+// 🔹 Helper: build arc path (pie slice)
+function buildPieSlicePath(
+  cx: number,
+  cy: number,
+  r: number,
+  startAngle: number,
+  endAngle: number
+) {
+  const x1 = cx + r * Math.cos(startAngle);
+  const y1 = cy + r * Math.sin(startAngle);
+  const x2 = cx + r * Math.cos(endAngle);
+  const y2 = cy + r * Math.sin(endAngle);
+  const largeArcFlag = endAngle - startAngle > Math.PI ? 1 : 0;
+
+  return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
 }
 
 export default function AnalyticsPage() {
@@ -19,15 +46,7 @@ export default function AnalyticsPage() {
   const thisYear = now.getFullYear();
   const thisMonth = now.getMonth(); // 0–11
 
-  const categoryIcons: Record<string, any> = {
-    Food: "fast-food-outline",
-    Travel: "airplane-outline",
-    Shopping: "bag-handle-outline",
-    Bills: "document-text-outline",
-    Other: "ellipsis-horizontal-circle-outline",
-  };
-
-  // 1) This month expenses
+  // 1) Filter this month's expenses
   const monthExpenses = useMemo(
     () =>
       expenses.filter((e) => {
@@ -56,6 +75,31 @@ export default function AnalyticsPage() {
   }, [monthExpenses]);
 
   const hasData = categoryTotals.length > 0;
+
+  // 3) Build pie slices (angles + paths)
+  const PIE_SIZE = 180;
+  const RADIUS = PIE_SIZE / 2 - 4;
+
+  const pieSlices = useMemo(() => {
+    if (!hasData || monthTotal <= 0) return [];
+
+    let startAngle = -Math.PI / 2; // start from top (12 o'clock)
+    return categoryTotals.map((item, index) => {
+      const fraction = item.amount / monthTotal;
+      const sliceAngle = fraction * Math.PI * 2;
+      const endAngle = startAngle + sliceAngle;
+      const path = buildPieSlicePath(
+        PIE_SIZE / 2,
+        PIE_SIZE / 2,
+        RADIUS,
+        startAngle,
+        endAngle
+      );
+      const color = chartColors[index % chartColors.length];
+      startAngle = endAngle;
+      return { ...item, path, color };
+    });
+  }, [categoryTotals, monthTotal, hasData]);
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -88,7 +132,56 @@ export default function AnalyticsPage() {
           </Text>
         </Card>
 
-        {/* CATEGORY CHART */}
+        {/* PIE CHART SECTION */}
+        {hasData && (
+          <>
+            <Text style={styles.sectionTitle}>Spending breakdown</Text>
+
+            <Card style={styles.pieCard}>
+              <View style={styles.pieWrapper}>
+                <Svg width={PIE_SIZE} height={PIE_SIZE}>
+                  <G>
+                    {pieSlices.map((slice) => (
+                      <Path
+                        key={slice.category}
+                        d={slice.path}
+                        fill={slice.color}
+                      />
+                    ))}
+                  </G>
+                </Svg>
+              </View>
+
+              {/* Legend */}
+              <View style={styles.legendWrapper}>
+                {pieSlices.map((slice) => {
+                  const pct =
+                    monthTotal > 0
+                      ? Math.round((slice.amount / monthTotal) * 100)
+                      : 0;
+                  return (
+                    <View
+                      key={slice.category}
+                      style={styles.legendRow}
+                    >
+                      <View
+                        style={[
+                          styles.legendDot,
+                          { backgroundColor: slice.color },
+                        ]}
+                      />
+                      <Text style={styles.legendLabel}>
+                        {slice.category} — {pct}%
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </Card>
+          </>
+        )}
+
+        {/* CATEGORY LIST / BAR CHART */}
         <Text style={styles.sectionTitle}>By category</Text>
 
         {!hasData ? (
@@ -108,28 +201,15 @@ export default function AnalyticsPage() {
                   ? Math.round((item.amount / monthTotal) * 100)
                   : 0;
 
-              const iconName =
-                categoryIcons[item.category] || "ellipse-outline";
-
               return (
                 <View key={item.category} style={styles.row}>
-                  {/* icon + category + amount */}
                   <View style={styles.rowHeader}>
-                    <View style={styles.rowHeaderLeft}>
-                      <Ionicons
-                        name={iconName}
-                        size={16}
-                        color="#22C55E"
-                      />
-                      <Text style={styles.categoryName}>{item.category}</Text>
-                    </View>
-
+                    <Text style={styles.categoryName}>{item.category}</Text>
                     <Text style={styles.categoryAmount}>
                       {formatCurrency(item.amount, "LKR")}
                     </Text>
                   </View>
 
-                  {/* bar */}
                   <View style={styles.barBackground}>
                     <View
                       style={[
@@ -139,8 +219,7 @@ export default function AnalyticsPage() {
                     />
                   </View>
 
-                  {/* percentage pill */}
-                  <Text style={styles.percentPill}>{pct}%</Text>
+                  <Text style={styles.percentLabel}>{pct}%</Text>
                 </View>
               );
             })}

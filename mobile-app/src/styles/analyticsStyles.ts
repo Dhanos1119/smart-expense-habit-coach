@@ -158,4 +158,40 @@ export const analyticsStyles = StyleSheet.create({
     fontSize: 12,
     color: "#9CA3AF",
   },
+     pieCard: {
+    backgroundColor: "#0F172A",
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 24,
+  },
+  pieWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  legendWrapper: {
+    marginTop: 16,
+  },
+  legendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  legendLabel: {
+    fontSize: 13,
+    color: "#E5E7EB",
+  },
+  percentLabel: {
+  fontSize: 12,
+  color: "#9CA3AF",
+  width: 40,
+  textAlign: "right",
+},
+
+
 });

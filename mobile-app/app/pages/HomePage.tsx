@@ -13,6 +13,7 @@ import { router } from "expo-router";
 
 import { homeStyles as styles } from "../../src/styles/homeStyles";
 import { useExpenses } from "../../src/context/ExpensesContext";
+import { useHabits } from "../../src/context/HabitsContext";
 
 import { ThemedText as Text } from "@/components/themed-text";
 import { ThemedView as Card } from "@/components/themed-view";
@@ -29,6 +30,8 @@ export default function HomePage() {
     monthlyBudget,
     setMonthlyBudget,
   } = useExpenses();
+
+  const { habits, toggleHabitToday, deleteHabit } = useHabits();
 
   const [filter, setFilter] = useState<"month" | "all">("month");
   const [budgetInput, setBudgetInput] = useState("");
@@ -71,36 +74,22 @@ export default function HomePage() {
     message: "Let’s keep your spending healthy today.",
   };
 
-  const habits = [
-    {
-      id: "1",
-      title: "No outside food",
-      icon: "restaurant",
-      color: "#FF9800",
-      streak: 3,
-      completedToday: false,
-    },
-    {
-      id: "2",
-      title: "Track every expense",
-      icon: "create",
-      color: "#2196F3",
-      streak: 7,
-      completedToday: true,
-    },
-    {
-      id: "3",
-      title: "No impulse buys",
-      icon: "flash",
-      color: "#4CAF50",
-      streak: 2,
-      completedToday: false,
-    },
-  ];
+  const todayStr = new Date().toISOString().slice(0, 10);
 
   const hasExpenses = expenses.length > 0;
 
   const recentExpenses = useMemo(() => expenses.slice(0, 5), [expenses]);
+
+  // 🔧 DEV date override for testing habits (same idea as HabitsContext)
+const DEV_OVERRIDE_DATE: string | null = "2025-01-16"; 
+// Example test-ku: "2025-01-10"  / "2025-01-11"  etc.
+// Real app use panna pora time => null vainga
+
+function getTodayStr() {
+  if (DEV_OVERRIDE_DATE) return DEV_OVERRIDE_DATE;
+  return new Date().toISOString().slice(0, 10);
+}
+
 
   // ---- Budget derived values ----
   const remaining =
@@ -143,8 +132,6 @@ export default function HomePage() {
           </View>
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            
-
             <TouchableOpacity style={styles.profileButton}>
               <Ionicons name="person-circle-outline" size={32} color="#fff" />
             </TouchableOpacity>
@@ -306,7 +293,10 @@ export default function HomePage() {
             <Text style={styles.actionText}>Add Expense</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => router.push("/new-habit")}
+          >
             <View style={[styles.actionIcon, { backgroundColor: "#FFF3E0" }]}>
               <Ionicons name="flame" size={24} color="#FF9800" />
             </View>
@@ -322,40 +312,92 @@ export default function HomePage() {
             </View>
             <Text style={styles.actionText}>Analytics</Text>
           </TouchableOpacity>
+
+          {/* HISTORY QUICK ACTION */}
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => router.push("/history")}
+          >
+            <View style={[styles.actionIcon, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="time" size={24} color="#DC2626" />
+            </View>
+            <Text style={styles.actionText}>History</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* HABITS */}
+        {/* DAILY HABITS */}
         <Text style={styles.sectionTitle}>Daily Habits</Text>
         <View style={styles.habitsList}>
-          {habits.map((habit) => (
-            <View key={habit.id} style={styles.habitItem}>
-              <View
-                style={[
-                  styles.habitIcon,
-                  { backgroundColor: habit.color + "20" },
-                ]}
+          {habits.map((habit) => {
+             const todayStr = getTodayStr();  
+            const completedToday = habit.lastCompletedDate === todayStr;
+
+            return (
+              <TouchableOpacity
+                key={habit.id}
+                style={styles.habitItem}
+                activeOpacity={0.85}
+                onPress={() => toggleHabitToday(habit.id)}
+                onLongPress={() => {
+                  Alert.alert(
+                    "Delete habit?",
+                    `Are you sure you want to delete "${habit.title}"?`,
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Delete",
+                        style: "destructive",
+                        onPress: () => deleteHabit(habit.id),
+                      },
+                    ]
+                  );
+                }}
+                delayLongPress={500}
               >
-                <Ionicons
-                  name={(habit.icon as any) || "star"}
-                  size={20}
-                  color={habit.color}
-                />
-              </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    flex: 1,
+                  }}
+                >
+                  <View
+                    style={[
+                      styles.habitIcon,
+                      { backgroundColor: habit.color + "20" },
+                    ]}
+                  >
+                    <Ionicons
+                      name={(habit.icon as any) || "star"}
+                      size={20}
+                      color={habit.color}
+                    />
+                  </View>
 
-              <View style={styles.habitInfo}>
-                <Text style={styles.habitTitle}>{habit.title}</Text>
-                <Text style={styles.habitStreak}>
-                  {habit.streak} day streak
-                </Text>
-              </View>
+                  <View style={styles.habitInfo}>
+                    <Text style={styles.habitTitle}>{habit.title}</Text>
+                    <Text style={styles.habitStreak}>
+                      {habit.streak} day streak {completedToday ? "🔥" : ""}
+                    </Text>
+                  </View>
+                </View>
 
-              <View style={styles.checkbox}>
-                {habit.completedToday && (
-                  <Ionicons name="checkmark" size={16} color="white" />
-                )}
-              </View>
-            </View>
-          ))}
+                <View
+                  style={[
+                    styles.checkbox,
+                    completedToday && {
+                      backgroundColor: "#22C55E",
+                      borderColor: "#22C55E",
+                    },
+                  ]}
+                >
+                  {completedToday && (
+                    <Ionicons name="checkmark" size={16} color="white" />
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* RECENT EXPENSES */}
@@ -386,12 +428,12 @@ export default function HomePage() {
               );
             }}
             style={{
-            
+              backgroundColor: "#1F2933",
               padding: 10,
               borderRadius: 999,
             }}
           >
-            <Ionicons name="trash-outline" size={25} color="#d20f0fff"/>
+            <Ionicons name="trash-outline" size={25} color="#EF4444" />
           </TouchableOpacity>
         </View>
 

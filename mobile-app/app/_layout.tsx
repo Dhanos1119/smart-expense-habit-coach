@@ -5,7 +5,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ExpensesProvider } from '../src/context/ExpensesContext'; // 🔥 NEW
-
+import { HabitsProvider } from "../src/context/HabitsContext";
 export const unstable_settings = {
   anchor: '(tabs)',
 };
@@ -15,6 +15,7 @@ export default function RootLayout() {
 
   return (
     <ExpensesProvider>
+        <HabitsProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -25,6 +26,7 @@ export default function RootLayout() {
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
+      </HabitsProvider>
     </ExpensesProvider>
   );
 }
