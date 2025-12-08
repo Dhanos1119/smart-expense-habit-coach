@@ -1,25 +1,56 @@
+// app/pages/HomePage.tsx
 import React from "react";
-import { TouchableOpacity, ScrollView, SafeAreaView } from "react-native";
-
-import { ThemedText as Text } from "@/components/themed-text";
-import { ThemedView as View } from "@/components/themed-view";
+import {
+  ScrollView,
+  TouchableOpacity,
+  View,
+  SafeAreaView,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { homeStyles } from "../../src/styles/homeStyles";
 
-const styles = homeStyles;
+import { homeStyles as styles } from "../../src/styles/homeStyles";
+import { useExpenses } from "../../src/context/ExpensesContext";
+
+import { ThemedText as Text } from "@/components/themed-text";
+import { ThemedView as Card } from "@/components/themed-view";
+
+function formatCurrency(amount: number, currency: string) {
+  return `${currency} ${amount.toLocaleString("en-LK")}`;
+}
 
 export default function HomePage() {
+  const { expenses, monthTotal } = useExpenses();
+
+  // ---- trend calculation (this month vs last month) ----
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const thisMonth = now.getMonth(); // 0–11
+  const prevMonth = (thisMonth + 11) % 12;
+  const prevYear = prevMonth === 11 ? thisYear - 1 : thisYear;
+
+  const prevMonthTotal = expenses
+    .filter((e) => {
+      const d = new Date(e.date);
+      return d.getFullYear() === prevYear && d.getMonth() === prevMonth;
+    })
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  let trend: "up" | "down" | "same" = "same";
+  let percentage = 0;
+
+  if (prevMonthTotal === 0 && monthTotal > 0) {
+    trend = "up";
+    percentage = 100;
+  } else if (prevMonthTotal > 0) {
+    const diff = monthTotal - prevMonthTotal;
+    percentage = Math.round((Math.abs(diff) / prevMonthTotal) * 100);
+    trend = diff <= 0 ? "down" : "up";
+  }
+
   const user = {
     name: "Dhanoo",
     message: "Let’s keep your spending healthy today.",
-  };
-
-  const expenseSummary = {
-    total: 42000,
-    currency: "LKR",
-    trend: "down" as "down" | "up",
-    percentage: 12,
   };
 
   const habits = [
@@ -49,9 +80,7 @@ export default function HomePage() {
     },
   ];
 
-  function formatCurrency(amount: number, currency: string) {
-    return `${currency} ${amount.toLocaleString("en-LK")}`;
-  }
+  const hasExpenses = expenses.length > 0;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -59,41 +88,46 @@ export default function HomePage() {
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
       >
-        {/* Header Section */}
+        {/* HEADER */}
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Hello, {user.name} 👋</Text>
             <Text style={styles.subGreeting}>{user.message}</Text>
           </View>
-
           <TouchableOpacity style={styles.profileButton}>
             <Ionicons name="person-circle-outline" size={32} color="#fff" />
           </TouchableOpacity>
         </View>
 
-        {/* Expense Summary Card */}
-        <View style={[styles.card, styles.expenseCard]}>
+        {/* EXPENSE SUMMARY CARD */}
+        <Card style={[styles.card, styles.expenseCard]}>
           <Text style={styles.cardTitle}>Month to Date</Text>
           <Text style={styles.expenseAmount}>
-            {formatCurrency(expenseSummary.total, expenseSummary.currency)}
+            {formatCurrency(monthTotal, "LKR")}
           </Text>
-          <View style={styles.trendContainer}>
-            <Ionicons
-              name={
-                expenseSummary.trend === "down" ? "arrow-down" : "arrow-up"
-              }
-              size={16}
-              color={expenseSummary.trend === "down" ? "#4CAF50" : "#F44336"}
-            />
-            <Text style={styles.trendText}>
-              {expenseSummary.percentage}%{" "}
-              {expenseSummary.trend === "down" ? "less" : "more"} than last
-              month
-            </Text>
-          </View>
-        </View>
 
-        {/* Quick Actions */}
+          <View style={styles.trendContainer}>
+            {hasExpenses ? (
+              <>
+                <Ionicons
+                  name={trend === "down" ? "arrow-down" : "arrow-up"}
+                  size={16}
+                  color={trend === "down" ? "#4CAF50" : "#F44336"}
+                />
+                <Text style={styles.trendText}>
+                  {percentage}% {trend === "down" ? "less" : "more"} than last
+                  month
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.trendText}>
+                Add your first expense to begin
+              </Text>
+            )}
+          </View>
+        </Card>
+
+        {/* QUICK ACTIONS */}
         <View style={styles.actionsContainer}>
           <TouchableOpacity
             style={styles.actionButton}
@@ -123,7 +157,7 @@ export default function HomePage() {
           </TouchableOpacity>
         </View>
 
-        {/* Habits Section */}
+        {/* HABITS */}
         <Text style={styles.sectionTitle}>Daily Habits</Text>
         <View style={styles.habitsList}>
           {habits.map((habit) => (
@@ -144,7 +178,7 @@ export default function HomePage() {
               <View style={styles.habitInfo}>
                 <Text style={styles.habitTitle}>{habit.title}</Text>
                 <Text style={styles.habitStreak}>
-                  {habit.streak} day streak 
+                  {habit.streak} day streak 🔥
                 </Text>
               </View>
 

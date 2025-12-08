@@ -1,150 +1,138 @@
-import { StyleSheet, Platform, StatusBar } from "react-native";
-
-const STATUS_BAR_HEIGHT = StatusBar.currentHeight ?? 0;
+// src/styles/homeStyles.ts
+import { StyleSheet } from "react-native";
 
 export const homeStyles = StyleSheet.create({
-  // whole screen bg
+  // full-screen background + safe area
   screen: {
     flex: 1,
-    backgroundColor: "#000000", // pure black like iOS dark mode
+    backgroundColor: "#020617", // dark navy
   },
 
-  // ScrollView style
   container: {
     flex: 1,
   },
+
   contentContainer: {
     paddingHorizontal: 20,
-    paddingBottom: Platform.OS === "ios" ? 40 : 28,
+    paddingTop: 32,   // 🔥 top padding – greeting visible
+    paddingBottom: 40,
   },
 
-  // header at top
+  // HEADER
   header: {
-    paddingTop:
-      Platform.OS === "android" ? STATUS_BAR_HEIGHT + 8 : 16, // give space from notch
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: "#000000",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 24,
   },
   greeting: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#ffffff",
   },
   subGreeting: {
     fontSize: 14,
-    color: "#d1d5db",
+    opacity: 0.7,
     marginTop: 4,
   },
   profileButton: {
-    position: "absolute",
-    right: 20,
-    top:
-      Platform.OS === "android" ? STATUS_BAR_HEIGHT + 10 : 18,
     padding: 4,
   },
 
-  // main card
-card: {
-  marginTop: 16,
-  marginHorizontal: 20,
-  paddingHorizontal: 26,
-  paddingVertical: 28,  // 🔼 little more height inside
-  borderRadius: 26,
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.25,
-  shadowRadius: 14,
-  elevation: 6,
+  // CARD
+ card: {
+    paddingVertical: 28,   // 🔥 more top/bottom space
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
 },
 
   expenseCard: {
-    backgroundColor: "#1f2933",
+    backgroundColor: "#111827",
   },
   cardTitle: {
-    color: "#9ca3af",
+    color: "#9CA3AF",
     fontSize: 14,
     marginBottom: 8,
   },
 expenseAmount: {
-  color: "#ffffff",
-  fontSize: 23,          // 🔽 slightly smaller
-  fontWeight: "800",
-  letterSpacing: 0.5,
-  marginTop: 6,          // 🔼 push text down
-  marginBottom: 14,
+    color: "#F9FAFB",
+    fontSize: 30,        // 🔥 smaller to avoid clipping
+    lineHeight: 36,      // 🔥 ensures text never cuts
+    fontWeight: "700",
+    marginBottom: 12,
 },
 
-  trendContainer: {
+trendContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.08)",
     alignSelf: "flex-start",
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 4,
     borderRadius: 999,
-  },
+    backgroundColor: "rgba(148, 163, 184, 0.18)",
+    gap: 4,
+    marginTop: 4,    // 🔥 gives breathing room
+},
+
   trendText: {
-    color: "#e5e7eb",
     fontSize: 12,
-    marginLeft: 4,
+    color: "#E5E7EB",
   },
 
-  // actions row
+  // QUICK ACTIONS
   actionsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    marginTop: 24,
-    marginBottom: 24,
+    marginBottom: 32,
   },
   actionButton: {
     alignItems: "center",
     flex: 1,
   },
   actionIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
+    width: 64,
+    height: 64,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: 8,
   },
   actionText: {
     fontSize: 12,
     fontWeight: "500",
-    color: "#e5e7eb",
   },
 
+  // HABITS
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    marginBottom: 12,
-    color: "#f9fafb",
-    paddingHorizontal: 20,
+    marginBottom: 16,
   },
-
   habitsList: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    gap: 12,
   },
   habitItem: {
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
     borderRadius: 20,
-    backgroundColor: "#111827",
+    backgroundColor: "rgba(15, 23, 42, 0.9)",
     borderWidth: 1,
-    borderColor: "#1f2937",
+    borderColor: "rgba(148, 163, 184, 0.25)",
     marginBottom: 10,
   },
   habitIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: 14,
   },
   habitInfo: {
     flex: 1,
@@ -152,11 +140,11 @@ expenseAmount: {
   habitTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#f9fafb",
+    color: "#F9FAFB",
   },
   habitStreak: {
     fontSize: 12,
-    color: "#9ca3af",
+    color: "#9CA3AF",
     marginTop: 2,
   },
   checkbox: {
@@ -164,7 +152,7 @@ expenseAmount: {
     height: 24,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: "#4b5563",
+    borderColor: "#4B5563",
     justifyContent: "center",
     alignItems: "center",
   },
