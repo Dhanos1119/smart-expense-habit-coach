@@ -208,6 +208,17 @@ export default function HomePage() {
             <Text style={styles.actionText}>Add Expense</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity
+  style={styles.actionButton}
+  onPress={() => router.push("/history")}
+>
+  <View style={[styles.actionIcon, { backgroundColor: "#FEE2E2" }]}>
+    <Ionicons name="time" size={24} color="#DC2626" />
+  </View>
+  <Text style={styles.actionText}>History</Text>
+</TouchableOpacity>
+
+
           <TouchableOpacity style={styles.actionButton}>
             <View style={[styles.actionIcon, { backgroundColor: "#FFF3E0" }]}>
               <Ionicons name="flame" size={24} color="#FF9800" />
