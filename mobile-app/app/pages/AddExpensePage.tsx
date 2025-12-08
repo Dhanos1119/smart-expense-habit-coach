@@ -9,6 +9,7 @@ import {
   Pressable,
   Alert,
   Platform,
+  Keyboard,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Picker } from "@react-native-picker/picker";
@@ -16,7 +17,6 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { addExpenseStyles as styles } from "../../src/styles/addExpenseStyles";
 import { useExpenses } from "../../src/context/ExpensesContext";
-
 
 // Category order → Other last
 const CATEGORIES = ["Food", "Travel", "Bills", "Shopping", "Other"];
@@ -37,17 +37,18 @@ export default function AddExpensePage() {
 
   const [category, setCategory] = useState<string | null>(null);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
-    const { addExpense } = useExpenses();
 
-
+  const { addExpense } = useExpenses();
   const [error, setError] = useState("");
 
   // Save Expense
   function handleSave() {
     setError("");
 
-    if (!amount.trim() || isNaN(Number(amount))) {
-      setError("Please enter a valid amount.");
+    const numAmount = Number(amount);
+
+    if (!amount.trim() || isNaN(numAmount) || numAmount <= 0) {
+      setError("Please enter a valid amount greater than 0.");
       return;
     }
     if (!title.trim()) {
@@ -55,19 +56,21 @@ export default function AddExpensePage() {
       return;
     }
 
-        const payload = {
-      amount: Number(amount),
-      title: title.trim(),
-      date: dateText,
-      category: category || "Other",
-    };
+const payload = {
+  amount: Number(amount),
+  title: title.trim(),
+  date: dateText,
+  category: category || "Other",
+};
+
+addExpense(payload);
+
 
     // 👉 Save into global store
     addExpense(payload);
 
     console.log("Saved Expense:", payload);
     Alert.alert("Success", "Expense saved locally.");
-
 
     // Reset fields
     const now = new Date();
@@ -77,6 +80,8 @@ export default function AddExpensePage() {
     setDateText(formatDate(now));
     setCategory(null);
     setShowCategoryPicker(false);
+    setShowDatePicker(false);
+    Keyboard.dismiss();
   }
 
   return (
@@ -115,36 +120,41 @@ export default function AddExpensePage() {
 
         <Pressable
           style={styles.dateBox}
-          onPress={() => setShowDatePicker(!showDatePicker)}
+          onPress={() => {
+            Keyboard.dismiss();
+            setShowCategoryPicker(false);
+            setShowDatePicker(!showDatePicker);
+          }}
         >
           <Text style={styles.dateText}>{dateText}</Text>
           <Ionicons name="calendar-outline" size={20} color="#9ca3af" />
         </Pressable>
 
         {/* Date Picker */}
-    {showDatePicker && (
-  <View style={{
-      backgroundColor: "#111827",
-      padding: 10,
-      borderRadius: 10,
-      marginVertical: 10
-  }}>
-    <DateTimePicker
-      value={selectedDate}
-      mode="date"
-      display={Platform.OS === "ios" ? "spinner" : "calendar"}
-      themeVariant="dark"
-      onChange={(event, date) => {
-        if (event.type === "dismissed") return;
-        if (!date) return;
+        {showDatePicker && (
+          <View
+            style={{
+              backgroundColor: "#111827",
+              padding: 10,
+              borderRadius: 10,
+              marginVertical: 10,
+            }}
+          >
+            <DateTimePicker
+              value={selectedDate}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "calendar"}
+              themeVariant="dark"
+              onChange={(event, date) => {
+                if (event.type === "dismissed") return;
+                if (!date) return;
 
-        setSelectedDate(date);
-        setDateText(formatDate(date));
-      }}
-    />
-  </View>
-)}
-
+                setSelectedDate(date);
+                setDateText(formatDate(date));
+              }}
+            />
+          </View>
+        )}
 
         {/* CATEGORY */}
         <Text style={styles.fieldLabel}>Category</Text>
@@ -152,10 +162,10 @@ export default function AddExpensePage() {
         <Pressable
           style={styles.categoryBox}
           onPress={() => {
-  if (showDatePicker) setShowDatePicker(false);
-  setShowCategoryPicker(!showCategoryPicker);
-}}
-
+            Keyboard.dismiss();
+            if (showDatePicker) setShowDatePicker(false);
+            setShowCategoryPicker(!showCategoryPicker);
+          }}
         >
           <Text style={styles.categoryText}>
             {category || "Choose category"}
@@ -171,7 +181,10 @@ export default function AddExpensePage() {
           <View style={styles.pickerWrapper}>
             <Picker
               selectedValue={category || "Other"}
-              onValueChange={(val) => setCategory(val)}
+              onValueChange={(val) => {
+                setCategory(val);
+                setShowCategoryPicker(false);
+              }}
             >
               {CATEGORIES.map((c) => (
                 <Picker.Item key={c} label={c} value={c} />

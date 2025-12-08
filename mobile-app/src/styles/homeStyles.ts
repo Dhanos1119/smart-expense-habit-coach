@@ -14,7 +14,7 @@ export const homeStyles = StyleSheet.create({
 
   contentContainer: {
     paddingHorizontal: 20,
-    paddingTop: 32,   // 🔥 top padding – greeting visible
+    paddingTop: 32, // greeting visible
     paddingBottom: 40,
   },
 
@@ -24,23 +24,26 @@ export const homeStyles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 24,
+    marginTop: 10,
   },
   greeting: {
     fontSize: 24,
     fontWeight: "700",
+    color: "#F9FAFB",
   },
   subGreeting: {
     fontSize: 14,
     opacity: 0.7,
     marginTop: 4,
+    color: "#9CA3AF",
   },
   profileButton: {
     padding: 4,
   },
 
   // CARD
- card: {
-    paddingVertical: 28,   // 🔥 more top/bottom space
+  card: {
+    paddingVertical: 28, // more top/bottom space
     paddingHorizontal: 20,
     borderRadius: 24,
     marginBottom: 24,
@@ -49,25 +52,35 @@ export const homeStyles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 5,
-},
+  },
 
   expenseCard: {
     backgroundColor: "#111827",
   },
+
+  // row: title + filter chips
+  cardHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+
   cardTitle: {
     color: "#9CA3AF",
     fontSize: 14,
-    marginBottom: 8,
+    marginBottom: 0,
   },
-expenseAmount: {
+
+  expenseAmount: {
     color: "#F9FAFB",
-    fontSize: 30,        // 🔥 smaller to avoid clipping
-    lineHeight: 36,      // 🔥 ensures text never cuts
+    fontSize: 30, // smaller to avoid clipping
+    lineHeight: 36, // ensures text never cuts
     fontWeight: "700",
     marginBottom: 12,
-},
+  },
 
-trendContainer: {
+  trendContainer: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
@@ -76,12 +89,41 @@ trendContainer: {
     borderRadius: 999,
     backgroundColor: "rgba(148, 163, 184, 0.18)",
     gap: 4,
-    marginTop: 4,    // 🔥 gives breathing room
-},
+    marginTop: 4, // gives breathing room
+  },
 
   trendText: {
     fontSize: 12,
     color: "#E5E7EB",
+  },
+
+  // FILTER CHIPS (This month / All time)
+  filterRow: {
+    flexDirection: "row",
+    columnGap: 6,
+  },
+
+  filterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#4B5563",
+  },
+
+  filterChipActive: {
+    backgroundColor: "#22c55e22",
+    borderColor: "#22C55E",
+  },
+
+  filterChipText: {
+    fontSize: 12,
+    color: "#9CA3AF",
+  },
+
+  filterChipTextActive: {
+    color: "#E5E7EB",
+    fontWeight: "600",
   },
 
   // QUICK ACTIONS
@@ -105,6 +147,7 @@ trendContainer: {
   actionText: {
     fontSize: 12,
     fontWeight: "500",
+    color: "#E5E7EB",
   },
 
   // HABITS
@@ -112,6 +155,7 @@ trendContainer: {
     fontSize: 18,
     fontWeight: "600",
     marginBottom: 16,
+    color: "#F9FAFB",
   },
   habitsList: {
     gap: 12,

@@ -3,7 +3,6 @@ import React, {
   createContext,
   useContext,
   useEffect,
-  useMemo,
   useState,
   ReactNode,
 } from "react";
@@ -13,84 +12,91 @@ export type Expense = {
   id: string;
   amount: number;
   title: string;
-  date: string;      // "YYYY-MM-DD"
+  date: string;     // "YYYY-MM-DD"
   category: string;
 };
 
-type ExpensesContextValue = {
+type ExpensesContextType = {
   expenses: Expense[];
-  addExpense: (e: Omit<Expense, "id">) => void;
-  clearAll: () => void;
   monthTotal: number;
+  addExpense: (e: Omit<Expense, "id">) => void;
+  // later: editExpense, deleteExpense, clearAll, etc.
 };
 
-const ExpensesContext = createContext<ExpensesContextValue | undefined>(
+const ExpensesContext = createContext<ExpensesContextType | undefined>(
   undefined
 );
 
-const STORAGE_KEY = "@smart-expense-habit/expenses";
+const STORAGE_KEY = "@my_expense_app__expenses";
+
+function getCurrentMonthTotal(expenses: Expense[]): number {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+
+  return expenses
+    .filter((e) => {
+      const d = new Date(e.date);
+      return d.getFullYear() === y && d.getMonth() === m;
+    })
+    .reduce((sum, e) => sum + e.amount, 0);
+}
 
 export function ExpensesProvider({ children }: { children: ReactNode }) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [monthTotal, setMonthTotal] = useState(0);
+  const [hydrated, setHydrated] = useState(false); // loaded from storage?
 
-  // load once
+  // 🔹 1) Load from AsyncStorage on mount
   useEffect(() => {
     (async () => {
       try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed: Expense[] = JSON.parse(raw);
+        const json = await AsyncStorage.getItem(STORAGE_KEY);
+        if (json) {
+          const parsed: Expense[] = JSON.parse(json);
           setExpenses(parsed);
+          setMonthTotal(getCurrentMonthTotal(parsed));
         }
       } catch (err) {
-        console.warn("Failed to load expenses:", err);
+        console.warn("Failed to load expenses from storage:", err);
       } finally {
-        setLoaded(true);
+        setHydrated(true);
       }
     })();
   }, []);
 
-  // save whenever expenses change (after first load)
+  // 🔹 2) Whenever expenses change → save + recompute month total
   useEffect(() => {
-    if (!loaded) return;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(expenses)).catch((err) =>
-      console.warn("Failed to save expenses:", err)
-    );
-  }, [expenses, loaded]);
+    if (!hydrated) return; // avoid saving initial empty before load completes
 
+    (async () => {
+      try {
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+      } catch (err) {
+        console.warn("Failed to save expenses:", err);
+      }
+    })();
+
+    setMonthTotal(getCurrentMonthTotal(expenses));
+  }, [expenses, hydrated]);
+
+  // 🔹 3) Add new expense
   function addExpense(e: Omit<Expense, "id">) {
-    const newExpense: Expense = {
-      id: Date.now().toString(),
-      ...e,
-    };
-    setExpenses((prev) => [newExpense, ...prev]);
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    setExpenses((prev) => [
+      {
+        id,
+        ...e,
+      },
+      ...prev, // newest first
+    ]);
   }
 
-  function clearAll() {
-    setExpenses([]);
-  }
-
-  // current month total
-  const monthTotal = useMemo(() => {
-    if (!expenses.length) return 0;
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth();
-
-    return expenses
-      .filter((exp) => {
-        const d = new Date(exp.date);
-        return d.getFullYear() === y && d.getMonth() === m;
-      })
-      .reduce((sum, exp) => sum + exp.amount, 0);
-  }, [expenses]);
-
-  const value: ExpensesContextValue = {
+  const value: ExpensesContextType = {
     expenses,
-    addExpense,
-    clearAll,
     monthTotal,
+    addExpense,
   };
 
   return (
@@ -103,7 +109,7 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
 export function useExpenses() {
   const ctx = useContext(ExpensesContext);
   if (!ctx) {
-    throw new Error("useExpenses must be used inside <ExpensesProvider />");
+    throw new Error("useExpenses must be used within an ExpensesProvider");
   }
   return ctx;
 }

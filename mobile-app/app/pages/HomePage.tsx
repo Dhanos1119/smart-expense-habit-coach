@@ -1,5 +1,5 @@
 // app/pages/HomePage.tsx
-import React from "react";
+import React, { useMemo, useState } from "react";
 import {
   ScrollView,
   TouchableOpacity,
@@ -21,6 +21,16 @@ function formatCurrency(amount: number, currency: string) {
 
 export default function HomePage() {
   const { expenses, monthTotal } = useExpenses();
+
+  // ---- filter: this month / all time ----
+  const [filter, setFilter] = useState<"month" | "all">("month");
+
+  const allTimeTotal = useMemo(
+    () => expenses.reduce((sum, e) => sum + e.amount, 0),
+    [expenses]
+  );
+
+  const currentTotal = filter === "month" ? monthTotal : allTimeTotal;
 
   // ---- trend calculation (this month vs last month) ----
   const now = new Date();
@@ -101,27 +111,102 @@ export default function HomePage() {
 
         {/* EXPENSE SUMMARY CARD */}
         <Card style={[styles.card, styles.expenseCard]}>
-          <Text style={styles.cardTitle}>Month to Date</Text>
+          {/* title + filter chips */}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <Text style={styles.cardTitle}>
+              {filter === "month" ? "Month to Date" : "All-time Spend"}
+            </Text>
+
+            <View style={{ flexDirection: "row", gap: 6 }}>
+              <TouchableOpacity
+                onPress={() => setFilter("month")}
+                style={[
+                  {
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: "#4b5563",
+                  },
+                  filter === "month" && {
+                    backgroundColor: "#22c55e22",
+                    borderColor: "#22c55e",
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    { fontSize: 12, color: "#9ca3af" },
+                    filter === "month" && { color: "#e5e7eb", fontWeight: "600" },
+                  ]}
+                >
+                  This month
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setFilter("all")}
+                style={[
+                  {
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: "#4b5563",
+                  },
+                  filter === "all" && {
+                    backgroundColor: "#22c55e22",
+                    borderColor: "#22c55e",
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    { fontSize: 12, color: "#9ca3af" },
+                    filter === "all" && { color: "#e5e7eb", fontWeight: "600" },
+                  ]}
+                >
+                  All time
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* amount */}
           <Text style={styles.expenseAmount}>
-            {formatCurrency(monthTotal, "LKR")}
+            {formatCurrency(currentTotal, "LKR")}
           </Text>
 
+          {/* trend / helper text */}
           <View style={styles.trendContainer}>
-            {hasExpenses ? (
-              <>
-                <Ionicons
-                  name={trend === "down" ? "arrow-down" : "arrow-up"}
-                  size={16}
-                  color={trend === "down" ? "#4CAF50" : "#F44336"}
-                />
+            {filter === "month" ? (
+              hasExpenses ? (
+                <>
+                  <Ionicons
+                    name={trend === "down" ? "arrow-down" : "arrow-up"}
+                    size={16}
+                    color={trend === "down" ? "#4CAF50" : "#F44336"}
+                  />
+                  <Text style={styles.trendText}>
+                    {percentage}% {trend === "down" ? "less" : "more"} than last
+                    month
+                  </Text>
+                </>
+              ) : (
                 <Text style={styles.trendText}>
-                  {percentage}% {trend === "down" ? "less" : "more"} than last
-                  month
+                  Add your first expense to begin
                 </Text>
-              </>
+              )
             ) : (
               <Text style={styles.trendText}>
-                Add your first expense to begin
+                Showing all recorded expenses so far
               </Text>
             )}
           </View>
@@ -148,7 +233,7 @@ export default function HomePage() {
 
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => router.push("/explore")}
+            onPress={() => router.push("/(tabs)/explore")}
           >
             <View style={[styles.actionIcon, { backgroundColor: "#E8F5E9" }]}>
               <Ionicons name="stats-chart" size={24} color="#4CAF50" />
