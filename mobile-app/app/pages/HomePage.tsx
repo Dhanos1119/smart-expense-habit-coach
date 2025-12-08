@@ -6,6 +6,7 @@ import {
   View,
   SafeAreaView,
   Alert,
+  TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -21,10 +22,16 @@ function formatCurrency(amount: number, currency: string) {
 }
 
 export default function HomePage() {
-  const { expenses, monthTotal, clearAllExpenses } = useExpenses();
+  const {
+    expenses,
+    monthTotal,
+    clearAllExpenses,
+    monthlyBudget,
+    setMonthlyBudget,
+  } = useExpenses();
 
-  // ---- filter: this month / all time ----
   const [filter, setFilter] = useState<"month" | "all">("month");
+  const [budgetInput, setBudgetInput] = useState("");
 
   const allTimeTotal = useMemo(
     () => expenses.reduce((sum, e) => sum + e.amount, 0),
@@ -93,8 +100,34 @@ export default function HomePage() {
 
   const hasExpenses = expenses.length > 0;
 
-  // 🔹 last 5 expenses
   const recentExpenses = useMemo(() => expenses.slice(0, 5), [expenses]);
+
+  // ---- Budget derived values ----
+  const remaining =
+    monthlyBudget != null ? Math.max(monthlyBudget - monthTotal, 0) : 0;
+
+  const usage =
+    monthlyBudget != null && monthlyBudget > 0
+      ? monthTotal / monthlyBudget
+      : 0;
+
+  let budgetColor = "#22C55E"; // green
+  if (usage >= 0.9) budgetColor = "#EF4444"; // red
+  else if (usage >= 0.5) budgetColor = "#EAB308"; // yellow
+
+  function handleSaveBudget() {
+    if (!budgetInput.trim()) return;
+    const value = Number(budgetInput);
+    if (isNaN(value) || value <= 0) {
+      Alert.alert(
+        "Invalid budget",
+        "Please enter a valid number greater than 0."
+      );
+      return;
+    }
+    setMonthlyBudget(value);
+    setBudgetInput("");
+  }
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -110,8 +143,8 @@ export default function HomePage() {
           </View>
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            {/* small reset icon – dev use only */}
-          
+            
+
             <TouchableOpacity style={styles.profileButton}>
               <Ionicons name="person-circle-outline" size={32} color="#fff" />
             </TouchableOpacity>
@@ -120,7 +153,6 @@ export default function HomePage() {
 
         {/* EXPENSE SUMMARY CARD */}
         <Card style={[styles.card, styles.expenseCard]}>
-          {/* title + filter chips */}
           <View style={styles.cardHeaderRow}>
             <Text style={styles.cardTitle}>
               {filter === "month" ? "Month to Date" : "All-time Spend"}
@@ -163,12 +195,10 @@ export default function HomePage() {
             </View>
           </View>
 
-          {/* amount */}
           <Text style={styles.expenseAmount}>
             {formatCurrency(currentTotal, "LKR")}
           </Text>
 
-          {/* trend / helper text */}
           <View style={styles.trendContainer}>
             {filter === "month" ? (
               hasExpenses ? (
@@ -196,6 +226,74 @@ export default function HomePage() {
           </View>
         </Card>
 
+        {/* BUDGET CARD */}
+        <Card style={[styles.card, styles.budgetCard]}>
+          {monthlyBudget == null ? (
+            <>
+              <View style={styles.budgetHeaderRow}>
+                <Text style={styles.budgetLabel}>Set your monthly budget</Text>
+              </View>
+
+              <View style={styles.budgetInputRow}>
+                <TextInput
+                  style={styles.budgetInput}
+                  placeholder="e.g. 40000"
+                  placeholderTextColor="#6b7280"
+                  keyboardType="numeric"
+                  value={budgetInput}
+                  onChangeText={setBudgetInput}
+                />
+                <TouchableOpacity
+                  style={styles.budgetSaveButton}
+                  onPress={handleSaveBudget}
+                >
+                  <Text style={styles.budgetSaveText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.budgetHeaderRow}>
+                <Text style={styles.budgetLabel}>Budget this month</Text>
+                <Text style={styles.budgetAmount}>
+                  {formatCurrency(monthlyBudget, "LKR")}
+                </Text>
+              </View>
+
+              <View style={styles.budgetRow}>
+                <Text style={styles.budgetSmall}>
+                  Spent: {formatCurrency(monthTotal, "LKR")}
+                </Text>
+                <Text style={styles.budgetSmall}>
+                  Remaining: {formatCurrency(remaining, "LKR")}
+                </Text>
+              </View>
+
+              <View style={styles.budgetProgressBg}>
+                <View
+                  style={[
+                    styles.budgetProgressFill,
+                    {
+                      width: `${Math.min(usage * 100, 100)}%`,
+                      backgroundColor: budgetColor,
+                    },
+                  ]}
+                />
+              </View>
+
+              {usage >= 0.9 ? (
+                <Text style={styles.budgetWarning}>
+                  You’re very close to your budget limit!
+                </Text>
+              ) : usage >= 0.5 ? (
+                <Text style={styles.budgetWarning}>
+                  You’ve used more than half of your budget.
+                </Text>
+              ) : null}
+            </>
+          )}
+        </Card>
+
         {/* QUICK ACTIONS */}
         <View style={styles.actionsContainer}>
           <TouchableOpacity
@@ -207,17 +305,6 @@ export default function HomePage() {
             </View>
             <Text style={styles.actionText}>Add Expense</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-  style={styles.actionButton}
-  onPress={() => router.push("/history")}
->
-  <View style={[styles.actionIcon, { backgroundColor: "#FEE2E2" }]}>
-    <Ionicons name="time" size={24} color="#DC2626" />
-  </View>
-  <Text style={styles.actionText}>History</Text>
-</TouchableOpacity>
-
 
           <TouchableOpacity style={styles.actionButton}>
             <View style={[styles.actionIcon, { backgroundColor: "#FFF3E0" }]}>
@@ -271,42 +358,42 @@ export default function HomePage() {
           ))}
         </View>
 
-        {/* RECENT EXPENSES HEADER WITH DELETE ICON */}
-<View
-  style={{
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  }}
->
-  <Text style={styles.sectionTitle}>Recent expenses</Text>
+        {/* RECENT EXPENSES */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 10,
+            marginTop: 16,
+          }}
+        >
+          <Text style={styles.sectionTitle}>Recent expenses</Text>
 
-  {/* TRASH DELETE BUTTON */}
-  <TouchableOpacity
-    onPress={() => {
-      Alert.alert(
-        "Delete all expenses?",
-        "This will remove all your expenses permanently.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: () => clearAllExpenses(),
-          },
-        ]
-      );
-    }}
-    style={{
-    borderRadius: 12,
-      padding: 8,
-   }}
-  >
-    <Ionicons name="trash-outline" size={25} color="#bd2020ff" />
-  </TouchableOpacity>
-</View>
-
+          <TouchableOpacity
+            onPress={() => {
+              Alert.alert(
+                "Delete all expenses?",
+                "This will remove all your expenses permanently.",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: () => clearAllExpenses(),
+                  },
+                ]
+              );
+            }}
+            style={{
+            
+              padding: 10,
+              borderRadius: 999,
+            }}
+          >
+            <Ionicons name="trash-outline" size={25} color="#d20f0fff"/>
+          </TouchableOpacity>
+        </View>
 
         <Card style={styles.recentCard}>
           {recentExpenses.length === 0 ? (

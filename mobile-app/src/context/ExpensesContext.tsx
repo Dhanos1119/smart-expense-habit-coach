@@ -26,7 +26,9 @@ type ExpensesContextType = {
     changes: Partial<Omit<Expense, "id">>
   ) => void;
   deleteExpense: (id: string) => void;
-  clearAllExpenses: () => void; // NEW
+  clearAllExpenses: () => void;
+  monthlyBudget: number | null;
+  setMonthlyBudget: (amount: number | null) => void;
 };
 
 const ExpensesContext = createContext<ExpensesContextType | undefined>(
@@ -34,6 +36,7 @@ const ExpensesContext = createContext<ExpensesContextType | undefined>(
 );
 
 const STORAGE_KEY = "@my_expense_app__expenses";
+const BUDGET_KEY = "@my_expense_app__budget";
 
 // ---------------------------------------------
 // MONTH TOTAL
@@ -59,8 +62,10 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
   const [monthTotal, setMonthTotal] = useState(0);
   const [hydrated, setHydrated] = useState(false);
 
+  const [monthlyBudget, setMonthlyBudget] = useState<number | null>(null);
+
   // ---------------------------------------------
-  // LOAD FROM STORAGE
+  // LOAD FROM STORAGE (expenses)
   // ---------------------------------------------
   useEffect(() => {
     (async () => {
@@ -69,7 +74,6 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
         if (json) {
           const raw = JSON.parse(json);
 
-          // FIX: ensure amount is number even if stored as string
           const parsed: Expense[] = raw.map((e: any) => ({
             ...e,
             amount: Number(e.amount),
@@ -87,7 +91,24 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ---------------------------------------------
-  // SAVE TO STORAGE WHEN EXPENSES CHANGE
+  // LOAD BUDGET FROM STORAGE
+  // ---------------------------------------------
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(BUDGET_KEY);
+        if (stored != null) {
+          const num = Number(stored);
+          if (!isNaN(num) && num > 0) setMonthlyBudget(num);
+        }
+      } catch (err) {
+        console.warn("Failed to load budget:", err);
+      }
+    })();
+  }, []);
+
+  // ---------------------------------------------
+  // SAVE EXPENSES WHEN THEY CHANGE
   // ---------------------------------------------
   useEffect(() => {
     if (!hydrated) return;
@@ -104,13 +125,29 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
   }, [expenses, hydrated]);
 
   // ---------------------------------------------
+  // SAVE BUDGET WHEN IT CHANGES
+  // ---------------------------------------------
+  useEffect(() => {
+    (async () => {
+      try {
+        if (monthlyBudget == null) {
+          await AsyncStorage.removeItem(BUDGET_KEY);
+        } else {
+          await AsyncStorage.setItem(BUDGET_KEY, String(monthlyBudget));
+        }
+      } catch (err) {
+        console.warn("Failed to save budget:", err);
+      }
+    })();
+  }, [monthlyBudget]);
+
+  // ---------------------------------------------
   // ADD EXPENSE (duplicate guard)
   // ---------------------------------------------
   function addExpense(e: Omit<Expense, "id">) {
     setExpenses((prev) => {
       const last = prev[0];
 
-      // prevent double-add due to React strict mode
       if (
         last &&
         last.amount === e.amount &&
@@ -150,7 +187,7 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
   }
 
   // ---------------------------------------------
-  // CLEAR ALL EXPENSES (RESET APP DATA)
+  // CLEAR ALL EXPENSES
   // ---------------------------------------------
   function clearAllExpenses() {
     setExpenses([]);
@@ -169,7 +206,9 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
     addExpense,
     updateExpense,
     deleteExpense,
-    clearAllExpenses, // INCLUDE HERE
+    clearAllExpenses,
+    monthlyBudget,
+    setMonthlyBudget,
   };
 
   return (

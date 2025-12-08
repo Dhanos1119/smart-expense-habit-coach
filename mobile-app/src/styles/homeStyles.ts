@@ -241,4 +241,82 @@ export const homeStyles = StyleSheet.create({
     fontSize: 12,
     color: "#9CA3AF",
   },
+     // BUDGET CARD
+  budgetCard: {
+    backgroundColor: "#0F172A",
+    marginBottom: 24,
+  },
+  budgetHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+
+  // 🔥 UPDATED: SUPER VISIBLE BRIGHT WHITE LABEL
+  budgetLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FFFFFF", // changed from #9CA3AF → NOW FULL WHITE
+  },
+
+  budgetAmount: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#F9FAFB",
+  },
+  budgetRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 4,
+  },
+  budgetSmall: {
+    fontSize: 12,
+    color: "#E5E7EB",
+  },
+  budgetProgressBg: {
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: "rgba(31,41,55,0.9)",
+    overflow: "hidden",
+    marginTop: 10,
+  },
+  budgetProgressFill: {
+    height: "100%",
+    borderRadius: 999,
+  },
+  budgetWarning: {
+    marginTop: 6,
+    fontSize: 11,
+    color: "#F97316",
+  },
+  budgetInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+    columnGap: 8,
+  },
+  budgetInput: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.4)",
+    fontSize: 13,
+    color: "#fff", // the typed text also visible
+  },
+  budgetSaveButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: "#22C55E",
+  },
+  budgetSaveText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#0F172A",
+  },
+
+
 });
