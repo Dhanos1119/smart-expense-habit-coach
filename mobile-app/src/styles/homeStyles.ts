@@ -71,6 +71,12 @@ export const homeStyles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 0,
   },
+  cardSubtitle: {
+  color: "#94A3B8",   // light gray
+  fontSize: 13,
+  marginTop: -4,
+},
+
 
   expenseAmount: {
     color: "#F9FAFB",

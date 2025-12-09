@@ -25,25 +25,22 @@ type HabitsContextType = {
 };
 
 const HabitsContext = createContext<HabitsContextType | undefined>(undefined);
-
 const HABITS_KEY = "@my_expense_app__habits";
 
-// 🔧 DEV TESTING DATE OVERRIDE (streak test-ku only)
-// null => real device date use aagum
-// Example test panna: const DEV_OVERRIDE_DATE = "2025-01-10";
-const DEV_OVERRIDE_DATE: string | null = "2025-01-16";
+// 🔧 DEV TESTING DATE OVERRIDE (streak test only)
+// Set to null for real device date. For testing set "YYYY-MM-DD"
+// Example: const DEV_OVERRIDE_DATE = "2025-01-16";
+const DEV_OVERRIDE_DATE: string | null = null;
 
 function todayStr() {
-  if (DEV_OVERRIDE_DATE) {
-    return DEV_OVERRIDE_DATE;
-  }
+  if (DEV_OVERRIDE_DATE) return DEV_OVERRIDE_DATE;
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
 export function HabitsProvider({ children }: { children: ReactNode }) {
   const [habits, setHabits] = useState<Habit[]>([]);
 
-  // 🔹 Load from storage once
+  // Load from storage once
   useEffect(() => {
     (async () => {
       try {
@@ -51,7 +48,6 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
         if (json) {
           const parsed = JSON.parse(json) as Habit[];
 
-          // safety: old data-la field missing na default values set pannrom
           const fixed = parsed.map((h) => ({
             id: h.id,
             title: h.title,
@@ -101,7 +97,7 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  // 🔹 Save whenever habits change
+  // Save whenever habits change
   useEffect(() => {
     (async () => {
       try {
@@ -112,49 +108,52 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
     })();
   }, [habits]);
 
-  // ✅ Toggle logic (supports 0 → 1 → 0 on same day)
-function toggleHabitToday(id: string) {
-  const today = todayStr();
+  // Toggle logic (supports same-day un-tick -> 0, first-time -> 1, consecutive -> +1)
+  function toggleHabitToday(id: string) {
+    const today = todayStr();
 
-  setHabits((prev) =>
-    prev.map((h) => {
-      if (h.id !== id) return h;
+    setHabits((prev) =>
+      prev.map((h) => {
+        if (h.id !== id) return h;
 
-      // same-day un-tick
-      if (h.lastCompletedDate === today) {
+        // Same-day un-tick -> reset to 0 and clear date
+        if (h.lastCompletedDate === today) {
+          return {
+            ...h,
+            lastCompletedDate: null,
+            streak: 0,
+          };
+        }
+
+        // New tick today
+        let newStreak: number;
+
+        if (!h.lastCompletedDate) {
+          // first time ever (or previously cleared)
+          newStreak = 1;
+        } else {
+          // Compute "yesterday" based on today's value (respects DEV_OVERRIDE_DATE)
+          const t = new Date(today);
+          t.setDate(t.getDate() - 1);
+          const yStr = t.toISOString().slice(0, 10);
+
+          if (h.lastCompletedDate === yStr) {
+            newStreak = h.streak + 1; // consecutive day
+          } else {
+            newStreak = 1; // gap -> restart
+          }
+        }
+
         return {
           ...h,
-          lastCompletedDate: null,
-          streak: 0,
+          streak: newStreak,
+          lastCompletedDate: today,
         };
-      }
+      })
+    );
+  }
 
-      let newStreak: number;
-
-      if (!h.lastCompletedDate) {
-        newStreak = 1;
-      } else {
-        const t = new Date(today); // use today (may be DEV_OVERRIDE_DATE)
-        t.setDate(t.getDate() - 1);
-        const yStr = t.toISOString().slice(0, 10);
-
-        if (h.lastCompletedDate === yStr) {
-          newStreak = h.streak + 1;
-        } else {
-          newStreak = 1;
-        }
-      }
-
-      return {
-        ...h,
-        streak: newStreak,
-        lastCompletedDate: today,
-      };
-    })
-  );
-}
-
-  // ✅ Add new habit
+  // Add new habit
   function addHabit(input: { title: string }) {
     const trimmed = input.title.trim();
     if (!trimmed) return;
@@ -178,7 +177,7 @@ function toggleHabitToday(id: string) {
     setHabits((prev) => [newHabit, ...prev]);
   }
 
-  // ✅ Delete habit
+  // Delete habit
   function deleteHabit(id: string) {
     setHabits((prev) => prev.filter((h) => h.id !== id));
   }
@@ -190,14 +189,9 @@ function toggleHabitToday(id: string) {
     deleteHabit,
   };
 
-  return (
-    <HabitsContext.Provider value={value}>
-      {children}
-    </HabitsContext.Provider>
-  );
+  return <HabitsContext.Provider value={value}>{children}</HabitsContext.Provider>;
 }
 
-// 🔚 Hook
 export function useHabits() {
   const ctx = useContext(HabitsContext);
   if (!ctx) throw new Error("useHabits must be used within HabitsProvider");

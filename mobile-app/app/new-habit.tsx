@@ -17,6 +17,11 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { ThemedView as Card } from "@/components/themed-view";
 import { useHabits } from "../src/context/HabitsContext";
 
+// Set the native header title (removes the "(tabs)" segment)
+export const options = {
+  headerShown: false,
+};
+
 export default function NewHabitPage() {
   const { addHabit } = useHabits();
   const [title, setTitle] = useState("");
@@ -42,6 +47,7 @@ export default function NewHabitPage() {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
+        {/* in-page header (keeps consistent look even if native header shown) */}
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={22} color="#E5E7EB" />
@@ -58,6 +64,8 @@ export default function NewHabitPage() {
             placeholderTextColor="#6B7280"
             value={title}
             onChangeText={setTitle}
+            returnKeyType="done"
+            onSubmitEditing={handleSave}
           />
 
           <Text style={styles.helper}>
@@ -99,6 +107,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
+    color: "#FFFFFF",
   },
   card: {
     padding: 20,

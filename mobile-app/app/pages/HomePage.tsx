@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   Alert,
   TextInput,
+  Text as RNText,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -22,113 +23,196 @@ function formatCurrency(amount: number, currency: string) {
   return `${currency} ${amount.toLocaleString("en-LK")}`;
 }
 
-export default function HomePage() {
-  const {
-    expenses,
-    monthTotal,
-    clearAllExpenses,
-    monthlyBudget,
-    setMonthlyBudget,
-  } = useExpenses();
-
-  const { habits, toggleHabitToday, deleteHabit } = useHabits();
-
-  const [filter, setFilter] = useState<"month" | "all">("month");
-  const [budgetInput, setBudgetInput] = useState("");
-
-  const allTimeTotal = useMemo(
-    () => expenses.reduce((sum, e) => sum + e.amount, 0),
-    [expenses]
-  );
-
-  const currentTotal = filter === "month" ? monthTotal : allTimeTotal;
-
-  // ---- trend calculation (this month vs last month) ----
-  const now = new Date();
-  const thisYear = now.getFullYear();
-  const thisMonth = now.getMonth(); // 0–11
-  const prevMonth = (thisMonth + 11) % 12;
-  const prevYear = prevMonth === 11 ? thisYear - 1 : thisYear;
-
-  const prevMonthTotal = expenses
-    .filter((e) => {
-      const d = new Date(e.date);
-      return d.getFullYear() === prevYear && d.getMonth() === prevMonth;
-    })
-    .reduce((sum, e) => sum + e.amount, 0);
-
-  let trend: "up" | "down" | "same" = "same";
-  let percentage = 0;
-
-  if (prevMonthTotal === 0 && monthTotal > 0) {
-    trend = "up";
-    percentage = 100;
-  } else if (prevMonthTotal > 0) {
-    const diff = monthTotal - prevMonthTotal;
-    percentage = Math.round((Math.abs(diff) / prevMonthTotal) * 100);
-    trend = diff <= 0 ? "down" : "up";
-  }
-
-  const user = {
-    name: "Dhanoo",
-    message: "Let’s keep your spending healthy today.",
-  };
-
-  const todayStr = new Date().toISOString().slice(0, 10);
-
-  const hasExpenses = expenses.length > 0;
-
-  const recentExpenses = useMemo(() => expenses.slice(0, 5), [expenses]);
-
-  // 🔧 DEV date override for testing habits (same idea as HabitsContext)
-const DEV_OVERRIDE_DATE: string | null = "2025-01-16"; 
-// Example test-ku: "2025-01-10"  / "2025-01-11"  etc.
-// Real app use panna pora time => null vainga
+// DEV override (optional). Set same value here and in HabitsContext when testing streaks.
+// Set to null for production.
+const DEV_OVERRIDE_DATE: string | null = null; // e.g. "2025-01-16"
 
 function getTodayStr() {
   if (DEV_OVERRIDE_DATE) return DEV_OVERRIDE_DATE;
   return new Date().toISOString().slice(0, 10);
 }
 
+function monthName(monthIndex: number) {
+  return [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ][monthIndex];
+}
 
-  // ---- Budget derived values ----
+export default function HomePage() {
+  // Expenses context
+  const { expenses, monthTotal, clearAllExpenses, monthlyBudget, setMonthlyBudget } = useExpenses();
+
+  // Habits context
+  const { habits, toggleHabitToday, deleteHabit } = useHabits();
+
+  // UI state
+  const [filter, setFilter] = useState<"month" | "all">("month");
+  const [budgetInput, setBudgetInput] = useState("");
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
+
+  // month selector state (year + month)
+  const now = DEV_OVERRIDE_DATE ? new Date(DEV_OVERRIDE_DATE) : new Date();
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState(now.getMonth()); // 0-11
+
+  // Totals
+  const allTimeTotal = useMemo(() => expenses.reduce((sum, e) => sum + e.amount, 0), [expenses]);
+
+  // selected month total (selectedYear & selectedMonthIndex)
+  const selectedMonthTotal = useMemo(() => {
+    return expenses
+      .filter((e) => {
+        const d = new Date(e.date);
+        return d.getFullYear() === selectedYear && d.getMonth() === selectedMonthIndex;
+      })
+      .reduce((s, e) => s + e.amount, 0);
+  }, [expenses, selectedYear, selectedMonthIndex]);
+
+  // previous month (same year or previous year if month === 0)
+  const { prevMonthYear, prevMonthIndex } = useMemo(() => {
+    let y = selectedYear;
+    let m = selectedMonthIndex - 1;
+    if (m < 0) {
+      m = 11;
+      y = selectedYear - 1;
+    }
+    return { prevMonthYear: y, prevMonthIndex: m };
+  }, [selectedYear, selectedMonthIndex]);
+
+  const prevMonthTotal = useMemo(() => {
+    return expenses
+      .filter((e) => {
+        const d = new Date(e.date);
+        return d.getFullYear() === prevMonthYear && d.getMonth() === prevMonthIndex;
+      })
+      .reduce((s, e) => s + e.amount, 0);
+  }, [expenses, prevMonthYear, prevMonthIndex]);
+
+  // same month last year total
+  const prevYearSameMonthTotal = useMemo(() => {
+    const prevYear = selectedYear - 1;
+    return expenses
+      .filter((e) => {
+        const d = new Date(e.date);
+        return d.getFullYear() === prevYear && d.getMonth() === selectedMonthIndex;
+      })
+      .reduce((s, e) => s + e.amount, 0);
+  }, [expenses, selectedYear, selectedMonthIndex]);
+
+  // trend vs same month last year (existing logic)
+  let trend: "up" | "down" | "same" = "same";
+  let trendPercent = 0;
+  if (prevYearSameMonthTotal === 0 && selectedMonthTotal > 0) {
+    trend = "up";
+    trendPercent = 100;
+  } else if (prevYearSameMonthTotal > 0) {
+    const diff = selectedMonthTotal - prevYearSameMonthTotal;
+    trendPercent = Math.round((Math.abs(diff) / prevYearSameMonthTotal) * 100);
+    trend = diff <= 0 ? "down" : "up";
+  }
+
+  // trend vs previous month
+  let prevMonthTrend: "up" | "down" | "same" = "same";
+  let prevMonthPercent = 0;
+  if (prevMonthTotal === 0 && selectedMonthTotal > 0) {
+    prevMonthTrend = "up";
+    prevMonthPercent = 100;
+  } else if (prevMonthTotal > 0) {
+    const diff = selectedMonthTotal - prevMonthTotal;
+    prevMonthPercent = Math.round((Math.abs(diff) / prevMonthTotal) * 100);
+    prevMonthTrend = diff <= 0 ? "down" : "up";
+  }
+
+  // which total to show in main card
+  const currentTotal = filter === "month" ? selectedMonthTotal : allTimeTotal;
+
+  // budget calculations (uses your existing monthlyBudget)
   const remaining =
-    monthlyBudget != null ? Math.max(monthlyBudget - monthTotal, 0) : 0;
-
+    monthlyBudget != null ? Math.max(monthlyBudget - (filter === "month" ? selectedMonthTotal : monthTotal), 0) : 0;
   const usage =
-    monthlyBudget != null && monthlyBudget > 0
-      ? monthTotal / monthlyBudget
-      : 0;
+    monthlyBudget != null && monthlyBudget > 0 ? (filter === "month" ? selectedMonthTotal : monthTotal) / monthlyBudget : 0;
 
-  let budgetColor = "#22C55E"; // green
-  if (usage >= 0.9) budgetColor = "#EF4444"; // red
-  else if (usage >= 0.5) budgetColor = "#EAB308"; // yellow
+  let budgetColor = "#22C55E";
+  if (usage >= 0.9) budgetColor = "#EF4444";
+  else if (usage >= 0.5) budgetColor = "#EAB308";
 
   function handleSaveBudget() {
     if (!budgetInput.trim()) return;
     const value = Number(budgetInput);
     if (isNaN(value) || value <= 0) {
-      Alert.alert(
-        "Invalid budget",
-        "Please enter a valid number greater than 0."
-      );
+      Alert.alert("Invalid budget", "Please enter a valid number greater than 0.");
       return;
     }
     setMonthlyBudget(value);
     setBudgetInput("");
+    setIsEditingBudget(false);
   }
+
+  // month navigation
+  function goPrevMonth() {
+    let y = selectedYear;
+    let m = selectedMonthIndex - 1;
+    if (m < 0) {
+      m = 11;
+      y -= 1;
+    }
+    setSelectedYear(y);
+    setSelectedMonthIndex(m);
+  }
+
+  function goNextMonth() {
+    let y = selectedYear;
+    let m = selectedMonthIndex + 1;
+    if (m > 11) {
+      m = 0;
+      y += 1;
+    }
+    setSelectedYear(y);
+    setSelectedMonthIndex(m);
+  }
+
+  const today = getTodayStr();
+  const recentExpenses = useMemo(() => expenses.slice(0, 5), [expenses]);
+  const hasExpenses = expenses.length > 0;
+
+  // small inline chip style to avoid modifying homeStyles
+  const chipStyle: any = {
+    backgroundColor: "#0f1724",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 10,
+    alignSelf: "flex-start",
+  };
+
+  const chipTextStyle: any = {
+    color: "#cbd5e1",
+    marginLeft: 6,
+    fontSize: 13,
+  };
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-      >
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         {/* HEADER */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Hello, {user.name} 👋</Text>
-            <Text style={styles.subGreeting}>{user.message}</Text>
+            <Text style={styles.greeting}>Hello, Dhanoo </Text>
+            <Text style={styles.subGreeting}>Let’s keep your spending healthy today.</Text>
           </View>
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -140,184 +224,135 @@ function getTodayStr() {
 
         {/* EXPENSE SUMMARY CARD */}
         <Card style={[styles.card, styles.expenseCard]}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>
-              {filter === "month" ? "Month to Date" : "All-time Spend"}
-            </Text>
+          {/* centered month header */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "100%",
+              marginBottom: 6,
+            }}
+          >
+            <TouchableOpacity onPress={goPrevMonth} style={{ padding: 10 }}>
+              <Ionicons name="chevron-back" size={20} color="#cbd5e1" />
+            </TouchableOpacity>
 
-            <View style={styles.filterRow}>
-              <TouchableOpacity
-                onPress={() => setFilter("month")}
-                style={[
-                  styles.filterChip,
-                  filter === "month" && styles.filterChipActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    filter === "month" && styles.filterChipTextActive,
-                  ]}
-                >
-                  This month
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setFilter("all")}
-                style={[
-                  styles.filterChip,
-                  filter === "all" && styles.filterChipActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    filter === "all" && styles.filterChipTextActive,
-                  ]}
-                >
-                  All time
-                </Text>
-              </TouchableOpacity>
+            <View style={{ alignItems: "center", flex: 1 }}>
+              <Text style={styles.cardTitle}>
+                {monthName(selectedMonthIndex)} {selectedYear}
+              </Text>
+              <Text style={styles.cardSubtitle}>{filter === "month" ? "Month to Date" : "All-time Spend"}</Text>
             </View>
+
+            <TouchableOpacity onPress={goNextMonth} style={{ padding: 10 }}>
+              <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
+            </TouchableOpacity>
           </View>
 
-          <Text style={styles.expenseAmount}>
-            {formatCurrency(currentTotal, "LKR")}
-          </Text>
+          {/* amount */}
+          <Text style={styles.expenseAmount}>{formatCurrency(currentTotal, "LKR")}</Text>
 
-          <View style={styles.trendContainer}>
-            {filter === "month" ? (
-              hasExpenses ? (
-                <>
-                  <Ionicons
-                    name={trend === "down" ? "arrow-down" : "arrow-up"}
-                    size={16}
-                    color={trend === "down" ? "#4CAF50" : "#F44336"}
-                  />
-                  <Text style={styles.trendText}>
-                    {percentage}% {trend === "down" ? "less" : "more"} than last
-                    month
-                  </Text>
-                </>
-              ) : (
-                <Text style={styles.trendText}>
-                  Add your first expense to begin
-                </Text>
-              )
-            ) : (
-              <Text style={styles.trendText}>
-                Showing all recorded expenses so far
-              </Text>
-            )}
+          {/* Comparison chips: previous month + same month last year */}
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+            {/* previous month chip */}
+            <View style={chipStyle}>
+              <Ionicons name={prevMonthTrend === "down" ? "arrow-down" : "arrow-up"} size={14} color={prevMonthTrend === "down" ? "#4CAF50" : "#F44336"} />
+              <RNText style={chipTextStyle}>
+                {prevMonthPercent}% {prevMonthTrend === "down" ? "less" : "more"} than {monthName(prevMonthIndex)} {prevMonthYear}
+              </RNText>
+            </View>
+
+            {/* same month last year chip */}
+            <View style={chipStyle}>
+              <Ionicons name={trend === "down" ? "arrow-down" : "arrow-up"} size={14} color={trend === "down" ? "#4CAF50" : "#F44336"} />
+              <RNText style={chipTextStyle}>
+                {trendPercent}% {trend === "down" ? "less" : "more"} than {monthName(selectedMonthIndex)} {selectedYear - 1}
+              </RNText>
+            </View>
           </View>
         </Card>
 
         {/* BUDGET CARD */}
         <Card style={[styles.card, styles.budgetCard]}>
-          {monthlyBudget == null ? (
+          {monthlyBudget == null || isEditingBudget ? (
             <>
               <View style={styles.budgetHeaderRow}>
                 <Text style={styles.budgetLabel}>Set your monthly budget</Text>
+                {monthlyBudget != null && !isEditingBudget && (
+                  <TouchableOpacity onPress={() => setIsEditingBudget(true)} style={{ padding: 6 }}>
+                    <Ionicons name="pencil" size={18} color="#cbd5e1" />
+                  </TouchableOpacity>
+                )}
               </View>
 
               <View style={styles.budgetInputRow}>
-                <TextInput
-                  style={styles.budgetInput}
-                  placeholder="e.g. 40000"
-                  placeholderTextColor="#6b7280"
-                  keyboardType="numeric"
-                  value={budgetInput}
-                  onChangeText={setBudgetInput}
-                />
-                <TouchableOpacity
-                  style={styles.budgetSaveButton}
-                  onPress={handleSaveBudget}
-                >
+                <TextInput style={styles.budgetInput} placeholder="e.g. 40000" placeholderTextColor="#6b7280" keyboardType="numeric" value={budgetInput} onChangeText={setBudgetInput} />
+                <TouchableOpacity style={styles.budgetSaveButton} onPress={handleSaveBudget}>
                   <Text style={styles.budgetSaveText}>Save</Text>
                 </TouchableOpacity>
+
+                {isEditingBudget && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setBudgetInput("");
+                      setIsEditingBudget(false);
+                    }}
+                    style={{ marginLeft: 8, padding: 10 }}
+                  >
+                    <Text>Cancel</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </>
           ) : (
             <>
               <View style={styles.budgetHeaderRow}>
                 <Text style={styles.budgetLabel}>Budget this month</Text>
-                <Text style={styles.budgetAmount}>
-                  {formatCurrency(monthlyBudget, "LKR")}
-                </Text>
+                <Text style={styles.budgetAmount}>{formatCurrency(monthlyBudget, "LKR")}</Text>
+                <TouchableOpacity onPress={() => setIsEditingBudget(true)} style={{ marginLeft: 8 }}>
+                  <Ionicons name="pencil" size={18} color="#cbd5e1" />
+                </TouchableOpacity>
               </View>
 
               <View style={styles.budgetRow}>
-                <Text style={styles.budgetSmall}>
-                  Spent: {formatCurrency(monthTotal, "LKR")}
-                </Text>
-                <Text style={styles.budgetSmall}>
-                  Remaining: {formatCurrency(remaining, "LKR")}
-                </Text>
+                <Text style={styles.budgetSmall}>Spent: {formatCurrency(filter === "month" ? selectedMonthTotal : monthTotal, "LKR")}</Text>
+                <Text style={styles.budgetSmall}>Remaining: {formatCurrency(remaining, "LKR")}</Text>
               </View>
 
               <View style={styles.budgetProgressBg}>
-                <View
-                  style={[
-                    styles.budgetProgressFill,
-                    {
-                      width: `${Math.min(usage * 100, 100)}%`,
-                      backgroundColor: budgetColor,
-                    },
-                  ]}
-                />
+                <View style={[styles.budgetProgressFill, { width: `${Math.min(usage * 100, 100)}%`, backgroundColor: budgetColor }]} />
               </View>
 
-              {usage >= 0.9 ? (
-                <Text style={styles.budgetWarning}>
-                  You’re very close to your budget limit!
-                </Text>
-              ) : usage >= 0.5 ? (
-                <Text style={styles.budgetWarning}>
-                  You’ve used more than half of your budget.
-                </Text>
-              ) : null}
+              {usage >= 0.9 ? <Text style={styles.budgetWarning}>You’re very close to your budget limit!</Text> : usage >= 0.5 ? <Text style={styles.budgetWarning}>You’ve used more than half of your budget.</Text> : null}
             </>
           )}
         </Card>
 
         {/* QUICK ACTIONS */}
         <View style={styles.actionsContainer}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push("/(tabs)/add-expense")}
-          >
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push("/(tabs)/add-expense")}>
             <View style={[styles.actionIcon, { backgroundColor: "#E3F2FD" }]}>
               <Ionicons name="add" size={24} color="#2196F3" />
             </View>
             <Text style={styles.actionText}>Add Expense</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push("/new-habit")}
-          >
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push("/new-habit")}>
             <View style={[styles.actionIcon, { backgroundColor: "#FFF3E0" }]}>
               <Ionicons name="flame" size={24} color="#FF9800" />
             </View>
             <Text style={styles.actionText}>New Habit</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push("/(tabs)/explore")}
-          >
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push("/(tabs)/explore")}>
             <View style={[styles.actionIcon, { backgroundColor: "#E8F5E9" }]}>
               <Ionicons name="stats-chart" size={24} color="#4CAF50" />
             </View>
             <Text style={styles.actionText}>Analytics</Text>
           </TouchableOpacity>
 
-          {/* HISTORY QUICK ACTION */}
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push("/history")}
-          >
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push("/history")}>
             <View style={[styles.actionIcon, { backgroundColor: "#FEE2E2" }]}>
               <Ionicons name="time" size={24} color="#DC2626" />
             </View>
@@ -329,8 +364,7 @@ function getTodayStr() {
         <Text style={styles.sectionTitle}>Daily Habits</Text>
         <View style={styles.habitsList}>
           {habits.map((habit) => {
-             const todayStr = getTodayStr();  
-            const completedToday = habit.lastCompletedDate === todayStr;
+            const completedToday = habit.lastCompletedDate === today;
 
             return (
               <TouchableOpacity
@@ -338,40 +372,17 @@ function getTodayStr() {
                 style={styles.habitItem}
                 activeOpacity={0.85}
                 onPress={() => toggleHabitToday(habit.id)}
-                onLongPress={() => {
-                  Alert.alert(
-                    "Delete habit?",
-                    `Are you sure you want to delete "${habit.title}"?`,
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Delete",
-                        style: "destructive",
-                        onPress: () => deleteHabit(habit.id),
-                      },
-                    ]
-                  );
-                }}
+                onLongPress={() =>
+                  Alert.alert("Delete habit?", `Are you sure you want to delete "${habit.title}"?`, [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Delete", style: "destructive", onPress: () => deleteHabit(habit.id) },
+                  ])
+                }
                 delayLongPress={500}
               >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    flex: 1,
-                  }}
-                >
-                  <View
-                    style={[
-                      styles.habitIcon,
-                      { backgroundColor: habit.color + "20" },
-                    ]}
-                  >
-                    <Ionicons
-                      name={(habit.icon as any) || "star"}
-                      size={20}
-                      color={habit.color}
-                    />
+                <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                  <View style={[styles.habitIcon, { backgroundColor: habit.color + "20" }]}>
+                    <Ionicons name={(habit.icon as any) || "star"} size={20} color={habit.color} />
                   </View>
 
                   <View style={styles.habitInfo}>
@@ -382,18 +393,8 @@ function getTodayStr() {
                   </View>
                 </View>
 
-                <View
-                  style={[
-                    styles.checkbox,
-                    completedToday && {
-                      backgroundColor: "#22C55E",
-                      borderColor: "#22C55E",
-                    },
-                  ]}
-                >
-                  {completedToday && (
-                    <Ionicons name="checkmark" size={16} color="white" />
-                  )}
+                <View style={[styles.checkbox, completedToday && { backgroundColor: "#22C55E", borderColor: "#22C55E" }]}>
+                  {completedToday && <Ionicons name="checkmark" size={16} color="white" />}
                 </View>
               </TouchableOpacity>
             );
@@ -401,37 +402,17 @@ function getTodayStr() {
         </View>
 
         {/* RECENT EXPENSES */}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 10,
-            marginTop: 16,
-          }}
-        >
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10, marginTop: 16 }}>
           <Text style={styles.sectionTitle}>Recent expenses</Text>
 
           <TouchableOpacity
-            onPress={() => {
-              Alert.alert(
-                "Delete all expenses?",
-                "This will remove all your expenses permanently.",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: () => clearAllExpenses(),
-                  },
-                ]
-              );
-            }}
-            style={{
-              backgroundColor: "#1F2933",
-              padding: 10,
-              borderRadius: 999,
-            }}
+            onPress={() =>
+              Alert.alert("Delete all expenses?", "This will remove all your expenses permanently.", [
+                { text: "Cancel", style: "cancel" },
+                { text: "Delete", style: "destructive", onPress: () => clearAllExpenses() },
+              ])
+            }
+            style={{ backgroundColor: "#1F2933", padding: 10, borderRadius: 999 }}
           >
             <Ionicons name="trash-outline" size={25} color="#EF4444" />
           </TouchableOpacity>
@@ -439,30 +420,17 @@ function getTodayStr() {
 
         <Card style={styles.recentCard}>
           {recentExpenses.length === 0 ? (
-            <Text style={styles.recentEmptyText}>
-              No expenses recorded yet. Add your first one!
-            </Text>
+            <Text style={styles.recentEmptyText}>No expenses recorded yet. Add your first one!</Text>
           ) : (
             recentExpenses.map((e) => (
-              <TouchableOpacity
-                key={e.id}
-                style={styles.recentRow}
-                onPress={() =>
-                  router.push({
-                    pathname: "/expense/[id]",
-                    params: { id: e.id },
-                  })
-                }
-              >
+              <TouchableOpacity key={e.id} style={styles.recentRow} onPress={() => router.push({ pathname: "/expense/[id]", params: { id: e.id } })}>
                 <View style={styles.recentLeft}>
                   <Text style={styles.recentTitle}>{e.title}</Text>
                   <Text style={styles.recentMeta}>
                     {e.category} • {e.date}
                   </Text>
                 </View>
-                <Text style={styles.recentAmount}>
-                  LKR {e.amount.toLocaleString("en-LK")}
-                </Text>
+                <Text style={styles.recentAmount}>LKR {e.amount.toLocaleString("en-LK")}</Text>
               </TouchableOpacity>
             ))
           )}
