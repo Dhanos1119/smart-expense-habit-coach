@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useMonth } from "../../src/context/MonthContext";
 
 import { homeStyles as styles } from "../../src/styles/homeStyles";
 import { useExpenses } from "../../src/context/ExpensesContext";
@@ -56,15 +57,13 @@ export default function HomePage() {
   // Habits context
   const { habits, toggleHabitToday, deleteHabit } = useHabits();
 
+  // MonthContext (global selected month)
+  const { selectedYear, selectedMonthIndex, setYear, setMonth } = useMonth();
+
   // UI state
   const [filter, setFilter] = useState<"month" | "all">("month");
   const [budgetInput, setBudgetInput] = useState("");
   const [isEditingBudget, setIsEditingBudget] = useState(false);
-
-  // month selector state (year + month)
-  const now = DEV_OVERRIDE_DATE ? new Date(DEV_OVERRIDE_DATE) : new Date();
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonthIndex, setSelectedMonthIndex] = useState(now.getMonth()); // 0-11
 
   // Totals
   const allTimeTotal = useMemo(() => expenses.reduce((sum, e) => sum + e.amount, 0), [expenses]);
@@ -159,7 +158,12 @@ export default function HomePage() {
     setIsEditingBudget(false);
   }
 
-  // month navigation
+  // navigate to Analytics (Explore). Explore reads selected month from MonthContext.
+  function goToAnalytics() {
+    router.push("/(tabs)/explore");
+  }
+
+  // month navigation (updates global month)
   function goPrevMonth() {
     let y = selectedYear;
     let m = selectedMonthIndex - 1;
@@ -167,8 +171,8 @@ export default function HomePage() {
       m = 11;
       y -= 1;
     }
-    setSelectedYear(y);
-    setSelectedMonthIndex(m);
+    setYear(y);
+    setMonth(m);
   }
 
   function goNextMonth() {
@@ -178,8 +182,8 @@ export default function HomePage() {
       m = 0;
       y += 1;
     }
-    setSelectedYear(y);
-    setSelectedMonthIndex(m);
+    setYear(y);
+    setMonth(m);
   }
 
   const today = getTodayStr();
@@ -224,16 +228,7 @@ export default function HomePage() {
 
         {/* EXPENSE SUMMARY CARD */}
         <Card style={[styles.card, styles.expenseCard]}>
-          {/* centered month header */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "100%",
-              marginBottom: 6,
-            }}
-          >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", width: "100%", marginBottom: 6 }}>
             <TouchableOpacity onPress={goPrevMonth} style={{ padding: 10 }}>
               <Ionicons name="chevron-back" size={20} color="#cbd5e1" />
             </TouchableOpacity>
@@ -250,12 +245,9 @@ export default function HomePage() {
             </TouchableOpacity>
           </View>
 
-          {/* amount */}
           <Text style={styles.expenseAmount}>{formatCurrency(currentTotal, "LKR")}</Text>
 
-          {/* Comparison chips: previous month + same month last year */}
           <View style={{ flexDirection: "row", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
-            {/* previous month chip */}
             <View style={chipStyle}>
               <Ionicons name={prevMonthTrend === "down" ? "arrow-down" : "arrow-up"} size={14} color={prevMonthTrend === "down" ? "#4CAF50" : "#F44336"} />
               <RNText style={chipTextStyle}>
@@ -263,7 +255,6 @@ export default function HomePage() {
               </RNText>
             </View>
 
-            {/* same month last year chip */}
             <View style={chipStyle}>
               <Ionicons name={trend === "down" ? "arrow-down" : "arrow-up"} size={14} color={trend === "down" ? "#4CAF50" : "#F44336"} />
               <RNText style={chipTextStyle}>
@@ -345,7 +336,8 @@ export default function HomePage() {
             <Text style={styles.actionText}>New Habit</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton} onPress={() => router.push("/(tabs)/explore")}>
+          {/* ANALYTICS: uses global month so tab click or button both show same */}
+          <TouchableOpacity style={styles.actionButton} onPress={goToAnalytics}>
             <View style={[styles.actionIcon, { backgroundColor: "#E8F5E9" }]}>
               <Ionicons name="stats-chart" size={24} color="#4CAF50" />
             </View>
