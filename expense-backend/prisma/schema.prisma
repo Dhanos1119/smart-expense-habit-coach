@@ -5,11 +5,32 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
+  // no output here — let Prisma generate runtime files into node_modules/.prisma/client
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// ===== Example models (optional) =====
+// If you already have models below, keep them. These are just examples — remove or edit as needed.
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  expenses  Expense[]
+}
+
+model Expense {
+  id        Int      @id @default(autoincrement())
+  amount    Float
+  currency  String   @default("LKR")
+  note      String?
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
 }
