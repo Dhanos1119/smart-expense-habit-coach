@@ -1,25 +1,25 @@
 // app/(tabs)/_layout.tsx
-import React from "react";
+import React, { useContext } from "react";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { TouchableOpacity, Platform } from "react-native";
-import * as SecureStore from "expo-secure-store";
-
-/** token read helper (native + web fallback) */
-async function readToken(): Promise<string | null> {
-  try {
-    const v = await SecureStore.getItemAsync("accessToken");
-    if (v) return v;
-  } catch {}
-  try {
-    if (typeof window !== "undefined" && window.localStorage) {
-      return window.localStorage.getItem("accessToken");
-    }
-  } catch {}
-  return null;
-}
+import { useRouter } from "expo-router";
+import { AuthContext } from "../../src/context/AuthContext"; // adjust path if your context is elsewhere
 
 export default function TabLayout() {
+  const router = useRouter();
+  const { token } = useContext(AuthContext);
+
+  // Reusable handler for profile button
+  const handleProfilePress = async () => {
+    // token is provided by AuthContext (restored from AsyncStorage / secure store)
+    if (!token) {
+      router.push("/login");
+    } else {
+      router.push("/profile");
+    }
+  };
+
   return (
     <Tabs
       screenOptions={{
@@ -28,9 +28,29 @@ export default function TabLayout() {
         tabBarStyle: { height: 64, paddingBottom: 8 },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} /> }} />
-      <Tabs.Screen name="explore" options={{ title: "Explore", tabBarIcon: ({ color }) => <Ionicons name="paper-plane" size={24} color={color} /> }} />
-      <Tabs.Screen name="add-expense" options={{ title: "Add", tabBarIcon: ({ color }) => <Ionicons name="add-circle" size={28} color={color} /> }} />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: "Home",
+          tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} />,
+        }}
+      />
+
+      <Tabs.Screen
+        name="explore"
+        options={{
+          title: "Explore",
+          tabBarIcon: ({ color }) => <Ionicons name="paper-plane" size={24} color={color} />,
+        }}
+      />
+
+      <Tabs.Screen
+        name="add-expense"
+        options={{
+          title: "Add",
+          tabBarIcon: ({ color }) => <Ionicons name="add-circle" size={28} color={color} />,
+        }}
+      />
 
       <Tabs.Screen
         name="profile"
@@ -38,14 +58,14 @@ export default function TabLayout() {
           title: "Profile",
           tabBarIcon: ({ color }) => <Ionicons name="person-circle-outline" size={24} color={color} />,
           tabBarButton: (props: any) => {
-            const onPress = async () => {
-              const token = await readToken();
-              const { router } = await import("expo-router");
-              if (!token) router.push("/login");
-              else router.push("/profile");
-            };
+            // custom button so we can gate navigation based on auth
             return (
-              <TouchableOpacity {...(props as any)} activeOpacity={0.8} onPress={onPress} style={[props.style, Platform.OS === "android" ? { paddingVertical: 6 } : {}]} />
+              <TouchableOpacity
+                {...props}
+                activeOpacity={0.8}
+                onPress={handleProfilePress}
+                style={[props.style, Platform.OS === "android" ? { paddingVertical: 6 } : {}]}
+              />
             );
           },
         }}

@@ -1,15 +1,16 @@
 // app/login.tsx
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { SafeAreaView, View, TextInput, TouchableOpacity, Text, Alert, ActivityIndicator, StyleSheet } from "react-native";
-import axios from "axios";
-import * as SecureStore from "expo-secure-store";
 import { useRouter } from "expo-router";
+import { AuthContext } from "../src/context/AuthContext";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useContext(AuthContext);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   async function doLogin() {
     if (!email || !password) {
@@ -18,47 +19,15 @@ export default function LoginPage() {
     }
 
     try {
-      setLoading(true);
-
-      const res = await axios.post(
-        "/api/auth/login",
-        { email, password },
-        {
-          baseURL: process.env.API_BASE_URL || "https://your-api.com", // set to your dev server or ngrok
-          withCredentials: true, // keep if backend uses httpOnly cookie; otherwise optional
-        }
-      );
-
-      const accessToken = res.data?.accessToken;
-      if (!accessToken) {
-        Alert.alert("Login error", "Server didn't return access token. Check backend.");
-        setLoading(false);
-        return;
-      }
-
-      // Save token to SecureStore (native)
-      try {
-        await SecureStore.setItemAsync("accessToken", accessToken);
-      } catch (e) {
-        console.warn("SecureStore save error:", e);
-      }
-
-      // Also save to localStorage for web fallback
-      try {
-        if (typeof window !== "undefined" && window.localStorage) {
-          window.localStorage.setItem("accessToken", accessToken);
-        }
-      } catch (e) {
-        console.warn("localStorage save error:", e);
-      }
-
-      // Enter the app (replace so login isn't in back stack)
-      router.replace("/"); // change to router.replace("/home") if your tabs root differs
+      setBusy(true);
+      await login({ email, password });
+      router.replace("/(tabs)");
     } catch (err: any) {
-      console.log("Login error:", err?.response?.data || err?.message);
-      Alert.alert("Login failed", err?.response?.data?.error || "Check credentials or server");
+      console.log("Login error:", err?.response?.data || err?.message || err);
+      const message = err?.response?.data?.message || err?.message || "Login failed. Check credentials or server.";
+      Alert.alert("Login failed", String(message));
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
@@ -86,8 +55,8 @@ export default function LoginPage() {
           style={styles.input}
         />
 
-        <TouchableOpacity onPress={doLogin} style={styles.button}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign in</Text>}
+        <TouchableOpacity onPress={doLogin} style={[styles.button, busy ? { opacity: 0.7 } : {}]} disabled={busy}>
+          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign in</Text>}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push("/register")} style={{ marginTop: 12 }}>

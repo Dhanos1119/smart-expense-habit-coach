@@ -1,45 +1,49 @@
 // app/register.tsx
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { SafeAreaView, View, TextInput, TouchableOpacity, Text, Alert, ActivityIndicator, StyleSheet } from "react-native";
-import axios from "axios";
-import * as SecureStore from "expo-secure-store";
 import { useRouter } from "expo-router";
+import api from "../src/api/api";
+import { AuthContext } from "../src/context/AuthContext";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { login } = useContext(AuthContext);
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function doRegister() {
-    if (!email || !password) return Alert.alert("Missing", "Enter email and password");
+    if (!email || !password) {
+      Alert.alert("Missing", "Enter email and password");
+      return;
+    }
+
     try {
       setLoading(true);
-      const res = await axios.post(
-        "/api/auth/register",
-        { name, email, password },
-        { baseURL: process.env.API_BASE_URL || "https://your-api.com", withCredentials: true }
-      );
 
-      // Expect backend to return accessToken in response
-      const accessToken = res.data?.accessToken;
-      if (!accessToken) {
-        Alert.alert("Register error", "Server didn't return access token. Please login instead.");
-        setLoading(false);
-        return;
+      // Hit backend via central api instance
+      const res = await api.post("/api/auth/register", { name, email, password });
+
+      // If backend returns token directly in the response, we can use it.
+      // But safest: call login to get token + set context consistently.
+      // Many backends return created user + token; if yours does, you can skip login call.
+      // We'll try to auto-login using the same credentials.
+      try {
+        await login({ email, password });
+        // If login succeeds, navigate into app
+        router.replace("/(tabs)");
+      } catch (loginErr) {
+        // Registration success but auto-login failed; tell user to login manually
+        console.warn("Auto-login after register failed", loginErr);
+        Alert.alert("Registered", "Account created — please sign in.");
+        router.replace("/login");
       }
-
-      // Save token
-      try { await SecureStore.setItemAsync("accessToken", accessToken); } catch (e) { console.warn(e); }
-      try { if (typeof window !== "undefined" && window.localStorage) window.localStorage.setItem("accessToken", accessToken); } catch (e) {}
-
-      // Enter app
-      router.replace("/");
-
     } catch (err: any) {
-      console.log("Register error:", err?.response?.data || err?.message);
-      Alert.alert("Register failed", err?.response?.data?.error || "Check server");
+      console.log("Register error:", err?.response?.data || err?.message || err);
+      const serverMsg = err?.response?.data?.message || err?.response?.data || err?.message;
+      Alert.alert("Register failed", String(serverMsg) || "Check server");
     } finally {
       setLoading(false);
     }
@@ -52,7 +56,8 @@ export default function RegisterPage() {
         <TextInput placeholder="Name (optional)" value={name} onChangeText={setName} style={styles.input} placeholderTextColor="#9CA3AF" />
         <TextInput placeholder="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" style={styles.input} placeholderTextColor="#9CA3AF" />
         <TextInput placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry style={styles.input} placeholderTextColor="#9CA3AF" />
-        <TouchableOpacity onPress={doRegister} style={styles.button}>
+
+        <TouchableOpacity onPress={doRegister} style={[styles.button, loading ? { opacity: 0.7 } : {}]} disabled={loading}>
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Register</Text>}
         </TouchableOpacity>
 
