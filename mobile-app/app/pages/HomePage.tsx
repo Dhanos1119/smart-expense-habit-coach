@@ -1,5 +1,5 @@
 // app/pages/HomePage.tsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   ScrollView,
   TouchableOpacity,
@@ -8,67 +8,57 @@ import {
   Alert,
   TextInput,
   Text as RNText,
+  Image,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { useMonth } from "../../src/context/MonthContext";
+import { useRouter } from "expo-router";
+import axios from "axios";
+import * as SecureStore from "expo-secure-store";
 
+import { useMonth } from "../../src/context/MonthContext";
 import { homeStyles as styles } from "../../src/styles/homeStyles";
 import { useExpenses } from "../../src/context/ExpensesContext";
 import { useHabits } from "../../src/context/HabitsContext";
-
 import { ThemedText as Text } from "@/components/themed-text";
 import { ThemedView as Card } from "@/components/themed-view";
 
+/* ----------------- helper utils ----------------- */
 function formatCurrency(amount: number, currency: string) {
   return `${currency} ${amount.toLocaleString("en-LK")}`;
 }
-
-// DEV override (optional). Set same value here and in HabitsContext when testing streaks.
-// Set to null for production.
-const DEV_OVERRIDE_DATE: string | null = null; // e.g. "2025-01-16"
-
+const DEV_OVERRIDE_DATE: string | null = null;
 function getTodayStr() {
   if (DEV_OVERRIDE_DATE) return DEV_OVERRIDE_DATE;
   return new Date().toISOString().slice(0, 10);
 }
-
 function monthName(monthIndex: number) {
   return [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    "January","February","March","April","May","June","July","August","September","October","November","December",
   ][monthIndex];
 }
+/* -------------------------------------------------------------------- */
 
 export default function HomePage() {
-  // Expenses context
+  // existing contexts
   const { expenses, monthTotal, clearAllExpenses, monthlyBudget, setMonthlyBudget } = useExpenses();
-
-  // Habits context
   const { habits, toggleHabitToday, deleteHabit } = useHabits();
-
-  // MonthContext (global selected month)
   const { selectedYear, selectedMonthIndex, setYear, setMonth } = useMonth();
+  const router = useRouter();
+
 
   // UI state
   const [filter, setFilter] = useState<"month" | "all">("month");
   const [budgetInput, setBudgetInput] = useState("");
   const [isEditingBudget, setIsEditingBudget] = useState(false);
 
-  // Totals
+  // PROFILE state
+  const [profile, setProfile] = useState<{ id: string; email: string; name?: string; profileUrl?: string } | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+
+  // Totals & derived calculations
   const allTimeTotal = useMemo(() => expenses.reduce((sum, e) => sum + e.amount, 0), [expenses]);
 
-  // selected month total (selectedYear & selectedMonthIndex)
   const selectedMonthTotal = useMemo(() => {
     return expenses
       .filter((e) => {
@@ -78,7 +68,6 @@ export default function HomePage() {
       .reduce((s, e) => s + e.amount, 0);
   }, [expenses, selectedYear, selectedMonthIndex]);
 
-  // previous month (same year or previous year if month === 0)
   const { prevMonthYear, prevMonthIndex } = useMemo(() => {
     let y = selectedYear;
     let m = selectedMonthIndex - 1;
@@ -98,7 +87,6 @@ export default function HomePage() {
       .reduce((s, e) => s + e.amount, 0);
   }, [expenses, prevMonthYear, prevMonthIndex]);
 
-  // same month last year total
   const prevYearSameMonthTotal = useMemo(() => {
     const prevYear = selectedYear - 1;
     return expenses
@@ -109,7 +97,7 @@ export default function HomePage() {
       .reduce((s, e) => s + e.amount, 0);
   }, [expenses, selectedYear, selectedMonthIndex]);
 
-  // trend vs same month last year (existing logic)
+  // trend calculations
   let trend: "up" | "down" | "same" = "same";
   let trendPercent = 0;
   if (prevYearSameMonthTotal === 0 && selectedMonthTotal > 0) {
@@ -121,7 +109,6 @@ export default function HomePage() {
     trend = diff <= 0 ? "down" : "up";
   }
 
-  // trend vs previous month
   let prevMonthTrend: "up" | "down" | "same" = "same";
   let prevMonthPercent = 0;
   if (prevMonthTotal === 0 && selectedMonthTotal > 0) {
@@ -133,10 +120,7 @@ export default function HomePage() {
     prevMonthTrend = diff <= 0 ? "down" : "up";
   }
 
-  // which total to show in main card
   const currentTotal = filter === "month" ? selectedMonthTotal : allTimeTotal;
-
-  // budget calculations (uses your existing monthlyBudget)
   const remaining =
     monthlyBudget != null ? Math.max(monthlyBudget - (filter === "month" ? selectedMonthTotal : monthTotal), 0) : 0;
   const usage =
@@ -158,12 +142,10 @@ export default function HomePage() {
     setIsEditingBudget(false);
   }
 
-  // navigate to Analytics (Explore). Explore reads selected month from MonthContext.
   function goToAnalytics() {
     router.push("/(tabs)/explore");
   }
 
-  // month navigation (updates global month)
   function goPrevMonth() {
     let y = selectedYear;
     let m = selectedMonthIndex - 1;
@@ -190,7 +172,6 @@ export default function HomePage() {
   const recentExpenses = useMemo(() => expenses.slice(0, 5), [expenses]);
   const hasExpenses = expenses.length > 0;
 
-  // small inline chip style to avoid modifying homeStyles
   const chipStyle: any = {
     backgroundColor: "#0f1724",
     paddingVertical: 8,
@@ -202,26 +183,79 @@ export default function HomePage() {
     marginTop: 10,
     alignSelf: "flex-start",
   };
-
   const chipTextStyle: any = {
     color: "#cbd5e1",
     marginLeft: 6,
     fontSize: 13,
   };
 
+  /* ------------------ PROFILE fetch ------------------ */
+  useEffect(() => {
+    let cancelled = false;
+    async function loadProfile() {
+      setLoadingProfile(true);
+      try {
+        const token = await SecureStore.getItemAsync("accessToken");
+        if (!token) {
+          // Not signed in — keep profile null and don't crash
+          setProfile(null);
+          return;
+        }
+
+        const res = await axios.get("/api/users/me", {
+          baseURL: process.env.API_BASE_URL || "https://your-api.com",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!cancelled) setProfile(res.data);
+      } catch (err: any) {
+        console.log("Profile fetch error:", err?.response?.data || err?.message);
+        // If token invalid or expired — clear it locally so future attempts fetch login
+        try {
+          await SecureStore.deleteItemAsync("accessToken");
+        } catch {}
+        if (!cancelled) setProfile(null);
+      } finally {
+        if (!cancelled) setLoadingProfile(false);
+      }
+    }
+    loadProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // If user taps profile button: if signed in -> profile screen, else -> login screen
+async function openProfile() {
+  const token = await SecureStore.getItemAsync("accessToken");
+  if (!token) {
+    router.push("/login");
+    return;
+  }
+  router.push("/profile");
+}
+
+
+  /* ------------------ UI render ------------------ */
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         {/* HEADER */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Hello, Dhanoo </Text>
+            <Text style={styles.greeting}>Hello, {profile?.name ?? "Dhanoo"} </Text>
             <Text style={styles.subGreeting}>Let’s keep your spending healthy today.</Text>
           </View>
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <TouchableOpacity style={styles.profileButton}>
-              <Ionicons name="person-circle-outline" size={32} color="#fff" />
+            <TouchableOpacity style={styles.profileButton} onPress={openProfile}>
+              {loadingProfile ? (
+                <ActivityIndicator color="#fff" />
+              ) : profile?.profileUrl ? (
+                <Image source={{ uri: profile.profileUrl }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+              ) : (
+                <Ionicons name="person-circle-outline" size={36} color="#fff" />
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -336,7 +370,6 @@ export default function HomePage() {
             <Text style={styles.actionText}>New Habit</Text>
           </TouchableOpacity>
 
-          {/* ANALYTICS: uses global month so tab click or button both show same */}
           <TouchableOpacity style={styles.actionButton} onPress={goToAnalytics}>
             <View style={[styles.actionIcon, { backgroundColor: "#E8F5E9" }]}>
               <Ionicons name="stats-chart" size={24} color="#4CAF50" />
