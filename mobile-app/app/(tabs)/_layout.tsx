@@ -4,20 +4,16 @@ import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { TouchableOpacity, Platform } from "react-native";
 import { useRouter } from "expo-router";
-import { AuthContext } from "../../src/context/AuthContext"; // adjust path if your context is elsewhere
+import { AuthContext } from "../../src/context/AuthContext";
 
 export default function TabLayout() {
   const router = useRouter();
-  const { token } = useContext(AuthContext);
+  const { token, loading } = useContext(AuthContext);
 
-  // Reusable handler for profile button
-  const handleProfilePress = async () => {
-    // token is provided by AuthContext (restored from AsyncStorage / secure store)
-    if (!token) {
-      router.push("/login");
-    } else {
-      router.push("/profile");
-    }
+  const onProfilePress = () => {
+    if (loading) return; // still restoring
+    if (!token) router.push("/login");
+    else router.push("/profile");
   };
 
   return (
@@ -53,17 +49,16 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="profile"
+        name="profile" // this creates the tab entry
         options={{
           title: "Profile",
           tabBarIcon: ({ color }) => <Ionicons name="person-circle-outline" size={24} color={color} />,
           tabBarButton: (props: any) => {
-            // custom button so we can gate navigation based on auth
             return (
               <TouchableOpacity
                 {...props}
                 activeOpacity={0.8}
-                onPress={handleProfilePress}
+                onPress={onProfilePress}
                 style={[props.style, Platform.OS === "android" ? { paddingVertical: 6 } : {}]}
               />
             );
