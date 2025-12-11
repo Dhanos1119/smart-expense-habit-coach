@@ -14,12 +14,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ===== Example models (optional) =====
-// If you already have models below, keep them. These are just examples — remove or edit as needed.
+// ===== Models =====
 
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
+  password  String
   name      String?
   createdAt DateTime @default(now())
   expenses  Expense[]
