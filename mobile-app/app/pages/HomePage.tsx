@@ -247,17 +247,7 @@ async function openProfile() {
             <Text style={styles.subGreeting}>Let’s keep your spending healthy today.</Text>
           </View>
 
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <TouchableOpacity style={styles.profileButton} onPress={openProfile}>
-              {loadingProfile ? (
-                <ActivityIndicator color="#fff" />
-              ) : profile?.profileUrl ? (
-                <Image source={{ uri: profile.profileUrl }} style={{ width: 40, height: 40, borderRadius: 20 }} />
-              ) : (
-                <Ionicons name="person-circle-outline" size={36} color="#fff" />
-              )}
-            </TouchableOpacity>
-          </View>
+          
         </View>
 
         {/* EXPENSE SUMMARY CARD */}

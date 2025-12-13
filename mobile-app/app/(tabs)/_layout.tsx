@@ -11,9 +11,12 @@ export default function TabLayout() {
   const { token, loading } = useContext(AuthContext);
 
   const onProfilePress = () => {
-    if (loading) return; // still restoring
-    if (!token) router.push("/login");
-    else router.push("/profile");
+    if (loading) return; // context still restoring token
+    if (!token) {
+      router.replace("/login");
+    } else {
+      router.push("/profile"); // open slide panel
+    }
   };
 
   return (
@@ -21,14 +24,21 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#22C55E",
-        tabBarStyle: { height: 64, paddingBottom: 8 },
+        tabBarStyle: {
+          height: 64,
+          paddingBottom: 8,
+          backgroundColor: "#0a0f1a",
+          borderTopWidth: 0,
+        },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="home" size={24} color={color} />
+          ),
         }}
       />
 
@@ -36,7 +46,9 @@ export default function TabLayout() {
         name="explore"
         options={{
           title: "Explore",
-          tabBarIcon: ({ color }) => <Ionicons name="paper-plane" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="paper-plane" size={24} color={color} />
+          ),
         }}
       />
 
@@ -44,25 +56,31 @@ export default function TabLayout() {
         name="add-expense"
         options={{
           title: "Add",
-          tabBarIcon: ({ color }) => <Ionicons name="add-circle" size={28} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="add-circle" size={30} color={color} />
+          ),
         }}
       />
 
+      {/* PROFILE TAB */}
       <Tabs.Screen
-        name="profile" // this creates the tab entry
+        name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color }) => <Ionicons name="person-circle-outline" size={24} color={color} />,
-          tabBarButton: (props: any) => {
-            return (
-              <TouchableOpacity
-                {...props}
-                activeOpacity={0.8}
-                onPress={onProfilePress}
-                style={[props.style, Platform.OS === "android" ? { paddingVertical: 6 } : {}]}
-              />
-            );
-          },
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="person-circle-outline" size={26} color={color} />
+          ),
+          tabBarButton: (props: any) => (
+            <TouchableOpacity
+              {...props}
+              activeOpacity={0.85}
+              onPress={onProfilePress}
+              style={[
+                props.style,
+                Platform.OS === "android" ? { paddingVertical: 6 } : {},
+              ]}
+            />
+          ),
         }}
       />
     </Tabs>
