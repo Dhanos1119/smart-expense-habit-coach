@@ -1,4 +1,3 @@
-// app/profile.tsx
 import React, { useEffect, useRef, useState, useContext } from "react";
 import {
   SafeAreaView,
@@ -10,7 +9,6 @@ import {
   Dimensions,
   Animated,
   Pressable,
-  Platform,
   Image,
   Alert,
 } from "react-native";
@@ -26,76 +24,64 @@ const PANEL_WIDTH = Math.round(SCREEN_W * 0.75);
 
 export default function ProfilePanel() {
   const router = useRouter();
-  const { token, loading: authLoading, logout } = useContext(AuthContext);
+  const { token, loading: authLoading } = useContext(AuthContext);
 
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<{ name?: string; email?: string; avatarUrl?: string } | null>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [localAvatarUri, setLocalAvatarUri] = useState<string | null>(null);
 
-  // animation values
+  // Animation
   const translateX = useRef(new Animated.Value(-PANEL_WIDTH)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
 
-  const [interactive, setInteractive] = useState(false);
-  const closingRef = useRef(false);
-
-  // ---------------------------
   // FETCH PROFILE
-  // ---------------------------
   useEffect(() => {
     let alive = true;
-    (async () => {
-      if (authLoading) return;
 
+    (async () => {
       if (!token) {
         router.replace("/login");
         return;
       }
 
       try {
-        setLoading(true);
         const res = await api.get("/api/me");
+
         if (!alive) return;
 
-        setProfile(res.data?.user ?? null);
-        setLocalAvatarUri(res.data?.user?.avatarUrl || null);
-
+        const user = res.data?.user || {};
+        setProfile(user);
+        setLocalAvatarUri(user.avatarUrl || null);
       } catch (e) {
-        console.warn("profile fetch error", e);
+        console.log("PROFILE API ERROR:", e);
       } finally {
-        if (alive) setLoading(false);
+        setLoading(false);
       }
     })();
 
     return () => {
       alive = false;
     };
-  }, [authLoading, token]);
+  }, [token]);
 
-  // ---------------------------
-  // OPEN PANEL ANIMATION (WITH RESET)
-  // ---------------------------
+  // PANEL OPEN ANIMATION
   useEffect(() => {
-    // Reset all animation values
     translateX.setValue(-PANEL_WIDTH);
     overlayOpacity.setValue(0);
-    closingRef.current = false;
-    setInteractive(false);
 
-    // Animate open
     Animated.parallel([
       Animated.timing(overlayOpacity, {
         toValue: 0.6,
-        duration: 250,
+        duration: 200,
         useNativeDriver: true,
       }),
       Animated.spring(translateX, {
         toValue: 0,
+        speed: 18,
+        bounciness: 4,
         useNativeDriver: true,
-        speed: 20,
-        bounciness: 6,
       }),
-    ]).start(() => setInteractive(true));
+    ]).start();
   }, []);
 
   // ---------------------------
@@ -123,52 +109,33 @@ const closePanel = () => {
     overlayOpacity.setValue(0);
 
     // FIX: use replace instead of back
-   router.replace("/(tabs)")
-
+    router.replace("/(tabs)");
   });
 };
 
-
-  // ---------------------------
-  // PICK AVATAR
-  // ---------------------------
+  // PICK IMAGE
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (status !== "granted") {
-      Alert.alert("Permission required", "Please allow gallery access.");
+      Alert.alert("Permission required", "Allow gallery access.");
       return;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
-      allowsEditing: true,
     });
 
     if (result.canceled) return;
 
-    const uri = result.assets?.[0]?.uri;
-    if (uri) setLocalAvatarUri(uri);
+    const uri = result.assets[0].uri;
+    setLocalAvatarUri(uri);
   };
 
-  // ---------------------------
-  // LOGOUT
-  // ---------------------------
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (e) {
-      console.warn("logout error", e);
-    } finally {
-      router.replace("/login");
-    }
-  };
-
-  // ---------------------------
-  // LOADING
-  // ---------------------------
+  // LOADING UI
   if (authLoading || loading) {
     return (
       <SafeAreaView style={styles.center}>
@@ -177,69 +144,66 @@ const closePanel = () => {
     );
   }
 
-  // ---------------------------
-  // UI
-  // ---------------------------
   return (
     <SafeAreaView style={styles.full}>
-
-      {/* OVERLAY CLICK → CLOSE */}
-      <Pressable style={StyleSheet.absoluteFill} onPress={() => interactive && closePanel()}>
+      {/* OVERLAY CLICK TO CLOSE */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={closePanel}>
         <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]} />
       </Pressable>
 
       {/* SLIDE PANEL */}
       <Animated.View style={[styles.panel, { transform: [{ translateX }] }]}>
-
-        <View style={styles.closeRow}>
-          <TouchableOpacity onPress={() => interactive && closePanel()}>
-            <Ionicons name="close" size={22} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Header */}
+        {/* HEADER */}
         <View style={styles.header}>
           <TouchableOpacity onPress={pickImage} style={styles.avatarWrap}>
             {localAvatarUri ? (
               <Image source={{ uri: localAvatarUri }} style={styles.avatar} />
             ) : (
-              <Ionicons name="person-circle-outline" size={90} color="#fff" />
+              <View style={styles.plusWrap}>
+                <Ionicons name="add" size={34} color="#fff" />
+              </View>
             )}
           </TouchableOpacity>
 
-          <Text style={styles.name}>{profile?.name ?? "User"}</Text>
-          <Text style={styles.email}>{profile?.email ?? "---"}</Text>
+          <Text style={styles.name}>{profile?.name || "User"}</Text>
+          <Text style={styles.email}>{profile?.email || "---"}</Text>
         </View>
 
-        {/* List */}
+        {/* MENU OPTIONS */}
         <View style={styles.section}>
-          <TouchableOpacity style={styles.row}>
+          {/* THEME */}
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => router.push("/profile-pages/theme")}
+          >
             <Ionicons name="moon-outline" size={22} color="#fff" />
             <Text style={styles.rowText}>Theme</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.row}>
+          {/* TERMS */}
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => router.push("/profile-pages/terms")}
+          >
             <Ionicons name="document-text-outline" size={22} color="#fff" />
             <Text style={styles.rowText}>Terms & Conditions</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.row}>
+          {/* ABOUT */}
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => router.push("/profile-pages/about")}
+          >
             <Ionicons name="information-circle-outline" size={22} color="#fff" />
             <Text style={styles.rowText}>About App</Text>
           </TouchableOpacity>
         </View>
-
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-
       </Animated.View>
     </SafeAreaView>
   );
 }
 
 /* ------------------- STYLES ------------------- */
-
 const styles = StyleSheet.create({
   full: { flex: 1, backgroundColor: "transparent" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
@@ -253,32 +217,32 @@ const styles = StyleSheet.create({
     width: PANEL_WIDTH,
     height: SCREEN_H,
     backgroundColor: "#071025",
-    paddingTop: 20,
+    paddingTop: 100,
     paddingHorizontal: 18,
   },
 
-  closeRow: {
-    alignItems: "flex-end",
-    marginBottom: 10,
-  },
-
-  header: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
+  header: { alignItems: "center", marginBottom: 25 },
 
   avatarWrap: {
     width: 100,
     height: 100,
     borderRadius: 999,
-    overflow: "hidden",
     backgroundColor: "#0e1726",
-    alignItems: "center",
     justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
     marginBottom: 12,
   },
 
   avatar: { width: 100, height: 100, borderRadius: 999 },
+
+  plusWrap: {
+    width: 100,
+    height: 100,
+    borderRadius: 999,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 
   name: { color: "#fff", fontSize: 20, fontWeight: "700" },
   email: { color: "#9CA3AF", marginTop: 4 },
@@ -286,7 +250,7 @@ const styles = StyleSheet.create({
   section: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#123",
-    marginTop: 10,
+    marginTop: 20,
   },
 
   row: {
@@ -298,12 +262,4 @@ const styles = StyleSheet.create({
   },
 
   rowText: { color: "#fff", marginLeft: 12, fontSize: 16 },
-
-  logoutBtn: {
-    marginTop: 30,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-
-  logoutText: { color: "#ff6b6b", fontSize: 17, fontWeight: "600" },
 });
