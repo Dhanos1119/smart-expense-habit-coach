@@ -123,7 +123,8 @@ const closePanel = () => {
     overlayOpacity.setValue(0);
 
     // FIX: use replace instead of back
-    router.replace("/(tabs)");
+   router.replace("/(tabs)")
+
   });
 };
 

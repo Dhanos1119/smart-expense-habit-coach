@@ -10,15 +10,12 @@ export default function TabLayout() {
   const router = useRouter();
   const { token, loading } = useContext(AuthContext);
 
-  const onProfilePress = () => {
+  const openProfile = () => {
     if (loading) return;
-
     if (!token) {
       router.replace("/login");
     } else {
-      // 👇 IMPORTANT FIX: RANDOM KEY for forcing fresh mount
-      const randomKey = Date.now().toString();
-      router.push(`/profile?key=${randomKey}`);
+      router.push("/profile");
     }
   };
 
@@ -35,6 +32,8 @@ export default function TabLayout() {
         },
       }}
     >
+
+      {/* HOME */}
       <Tabs.Screen
         name="index"
         options={{
@@ -45,6 +44,7 @@ export default function TabLayout() {
         }}
       />
 
+      {/* EXPLORE */}
       <Tabs.Screen
         name="explore"
         options={{
@@ -55,6 +55,7 @@ export default function TabLayout() {
         }}
       />
 
+      {/* ADD EXPENSE */}
       <Tabs.Screen
         name="add-expense"
         options={{
@@ -65,27 +66,30 @@ export default function TabLayout() {
         }}
       />
 
-      {/* PROFILE TAB */}
+      {/* PROFILE BUTTON (CUSTOM) */}
       <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="person-circle-outline" size={26} color={color} />
-          ),
-          tabBarButton: (props: any) => (
-            <TouchableOpacity
-              {...props}
-              activeOpacity={0.85}
-              onPress={onProfilePress}
-              style={[
-                props.style,
-                Platform.OS === "android" ? { paddingVertical: 6 } : {},
-              ]}
-            />
-          ),
-        }}
-      />
+  name="dummy"
+  options={{
+    title: "Profile",
+    tabBarIcon: ({ color }) => (
+      <Ionicons name="person-circle-outline" size={26} color={color} />
+    ),
+    tabBarButton: (props) => (
+      <TouchableOpacity
+        
+        onPress={openProfile}
+        activeOpacity={0.8}
+        style={[
+          props.style,
+          Platform.OS === "android" ? { paddingVertical: 6 } : {},
+        ]}
+      >
+        {/* Children MUST EXIST or closing tag won't work */}
+      </TouchableOpacity>
+    ),
+  }}
+/>
+
     </Tabs>
   );
 }

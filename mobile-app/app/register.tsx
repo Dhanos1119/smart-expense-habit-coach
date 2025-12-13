@@ -33,7 +33,8 @@ export default function RegisterPage() {
       try {
         await login({ email, password });
         // If login succeeds, navigate into app
-        router.replace("/(tabs)");
+        router.replace("/(tabs)")
+
       } catch (loginErr) {
         // Registration success but auto-login failed; tell user to login manually
         console.warn("Auto-login after register failed", loginErr);
