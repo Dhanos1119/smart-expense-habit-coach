@@ -12,9 +12,11 @@ export default function TabLayout() {
 
   const openProfile = () => {
     if (loading) return;
+
     if (!token) {
-      router.replace("/login");
+      router.push("/login");
     } else {
+      // 🔥 IMPORTANT: push, NOT replace
       router.push("/profile");
     }
   };
@@ -24,15 +26,15 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#22C55E",
+        tabBarInactiveTintColor: "#888",
         tabBarStyle: {
           height: 64,
-          paddingBottom: 8,
+          paddingBottom: Platform.OS === "android" ? 6 : 8,
           backgroundColor: "#0a0f1a",
           borderTopWidth: 0,
         },
       }}
     >
-
       {/* HOME */}
       <Tabs.Screen
         name="index"
@@ -66,30 +68,34 @@ export default function TabLayout() {
         }}
       />
 
-      {/* PROFILE BUTTON (CUSTOM) */}
+      {/* PROFILE (DUMMY TAB) */}
       <Tabs.Screen
-  name="dummy"
-  options={{
-    title: "Profile",
-    tabBarIcon: ({ color }) => (
-      <Ionicons name="person-circle-outline" size={26} color={color} />
-    ),
-    tabBarButton: (props) => (
-      <TouchableOpacity
-        
-        onPress={openProfile}
-        activeOpacity={0.8}
-        style={[
-          props.style,
-          Platform.OS === "android" ? { paddingVertical: 6 } : {},
-        ]}
-      >
-        {/* Children MUST EXIST or closing tag won't work */}
-      </TouchableOpacity>
-    ),
-  }}
-/>
+        name="dummy"
+        options={{
+          title: "Profile",
 
+          // ❌ default tab navigation disable
+          href: null,
+
+          tabBarButton: () => (
+            <TouchableOpacity
+              onPress={openProfile}
+              activeOpacity={0.85}
+              style={{
+                flex: 1,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons
+                name="person-circle-outline"
+                size={26}
+                color="#888"
+              />
+            </TouchableOpacity>
+          ),
+        }}
+      />
     </Tabs>
   );
 }

@@ -21,24 +21,27 @@ import { AuthContext } from "../src/context/AuthContext";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const PANEL_WIDTH = Math.round(SCREEN_W * 0.75);
+const TAB_BAR_HEIGHT = 70; // 🔥 real bottom tab bar height
 
 export default function ProfilePanel() {
   const router = useRouter();
-  const { token, loading: authLoading } = useContext(AuthContext);
+  const { token, loading: authLoading, logout } = useContext(AuthContext);
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [localAvatarUri, setLocalAvatarUri] = useState<string | null>(null);
 
-  // Animation
+  const closingRef = useRef(false);
   const translateX = useRef(new Animated.Value(-PANEL_WIDTH)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
 
-  // FETCH PROFILE
+  /* ---------------------------------------------
+     FETCH USER
+  --------------------------------------------- */
   useEffect(() => {
-    let alive = true;
+    let isAlive = true;
 
-    (async () => {
+    const fetchProfile = async () => {
       if (!token) {
         router.replace("/login");
         return;
@@ -46,25 +49,27 @@ export default function ProfilePanel() {
 
       try {
         const res = await api.get("/api/me");
-
-        if (!alive) return;
+        if (!isAlive) return;
 
         const user = res.data?.user || {};
         setProfile(user);
         setLocalAvatarUri(user.avatarUrl || null);
-      } catch (e) {
-        console.log("PROFILE API ERROR:", e);
+      } catch (err) {
+        console.log("PROFILE API ERROR:", err);
       } finally {
-        setLoading(false);
+        if (isAlive) setLoading(false);
       }
-    })();
+    };
 
+    fetchProfile();
     return () => {
-      alive = false;
+      isAlive = false;
     };
   }, [token]);
 
-  // PANEL OPEN ANIMATION
+  /* ---------------------------------------------
+     OPEN ANIMATION
+  --------------------------------------------- */
   useEffect(() => {
     translateX.setValue(-PANEL_WIDTH);
     overlayOpacity.setValue(0);
@@ -84,41 +89,40 @@ export default function ProfilePanel() {
     ]).start();
   }, []);
 
-  // ---------------------------
-  // CLOSE PANEL
- // CLOSE PANEL
-const closePanel = () => {
-  if (closingRef.current) return;
-  closingRef.current = true;
+  /* ---------------------------------------------
+     CLOSE PANEL
+  --------------------------------------------- */
+  const closePanel = () => {
+    if (closingRef.current) return;
+    closingRef.current = true;
 
-  setInteractive(false);
-
-  Animated.parallel([
-    Animated.timing(overlayOpacity, {
-      toValue: 0,
-      duration: 180,
-      useNativeDriver: true,
-    }),
-    Animated.timing(translateX, {
-      toValue: -PANEL_WIDTH,
-      duration: 180,
-      useNativeDriver: true,
-    }),
-  ]).start(() => {
-    translateX.setValue(-PANEL_WIDTH);
-    overlayOpacity.setValue(0);
-
-    // FIX: use replace instead of back
-    router.replace("/(tabs)");
-  });
+    Animated.parallel([
+      Animated.timing(overlayOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateX, {
+        toValue: -PANEL_WIDTH,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      const closePanel = () => {
+  router.back(); // 🔥 tabs alive irukkum
 };
 
-  // PICK IMAGE
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    });
+  };
 
+  /* ---------------------------------------------
+     PICK IMAGE
+  --------------------------------------------- */
+  const pickImage = async () => {
+    const { status } =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission required", "Allow gallery access.");
+      Alert.alert("Permission required");
       return;
     }
 
@@ -129,14 +133,12 @@ const closePanel = () => {
       quality: 0.7,
     });
 
-    if (result.canceled) return;
-
-    const uri = result.assets[0].uri;
-    setLocalAvatarUri(uri);
+    if (!result.canceled) {
+      setLocalAvatarUri(result.assets[0].uri);
+    }
   };
 
-  // LOADING UI
-  if (authLoading || loading) {
+  if (loading || authLoading) {
     return (
       <SafeAreaView style={styles.center}>
         <ActivityIndicator size="large" color="#fff" />
@@ -146,13 +148,17 @@ const closePanel = () => {
 
   return (
     <SafeAreaView style={styles.full}>
-      {/* OVERLAY CLICK TO CLOSE */}
+      {/* OVERLAY */}
       <Pressable style={StyleSheet.absoluteFill} onPress={closePanel}>
-        <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]} />
+        <Animated.View
+          style={[styles.overlay, { opacity: overlayOpacity }]}
+        />
       </Pressable>
 
-      {/* SLIDE PANEL */}
-      <Animated.View style={[styles.panel, { transform: [{ translateX }] }]}>
+      {/* SIDE PANEL */}
+      <Animated.View
+        style={[styles.panel, { transform: [{ translateX }] }]}
+      >
         {/* HEADER */}
         <View style={styles.header}>
           <TouchableOpacity onPress={pickImage} style={styles.avatarWrap}>
@@ -169,9 +175,8 @@ const closePanel = () => {
           <Text style={styles.email}>{profile?.email || "---"}</Text>
         </View>
 
-        {/* MENU OPTIONS */}
+        {/* MENU */}
         <View style={styles.section}>
-          {/* THEME */}
           <TouchableOpacity
             style={styles.row}
             onPress={() => router.push("/profile-pages/theme")}
@@ -180,35 +185,61 @@ const closePanel = () => {
             <Text style={styles.rowText}>Theme</Text>
           </TouchableOpacity>
 
-          {/* TERMS */}
           <TouchableOpacity
             style={styles.row}
             onPress={() => router.push("/profile-pages/terms")}
           >
-            <Ionicons name="document-text-outline" size={22} color="#fff" />
+            <Ionicons
+              name="document-text-outline"
+              size={22}
+              color="#fff"
+            />
             <Text style={styles.rowText}>Terms & Conditions</Text>
           </TouchableOpacity>
 
-          {/* ABOUT */}
           <TouchableOpacity
             style={styles.row}
             onPress={() => router.push("/profile-pages/about")}
           >
-            <Ionicons name="information-circle-outline" size={22} color="#fff" />
+            <Ionicons
+              name="information-circle-outline"
+              size={22}
+              color="#fff"
+            />
             <Text style={styles.rowText}>About App</Text>
           </TouchableOpacity>
         </View>
+
+        {/* LOGOUT */}
+        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+          <Ionicons name="log-out-outline" size={22} color="#ff4d4d" />
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
       </Animated.View>
     </SafeAreaView>
   );
 }
 
-/* ------------------- STYLES ------------------- */
+/* ---------------------------------------------
+   STYLES
+--------------------------------------------- */
 const styles = StyleSheet.create({
-  full: { flex: 1, backgroundColor: "transparent" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  full: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
 
-  overlay: { flex: 1, backgroundColor: "#000" },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#020617",
+  },
+
+  overlay: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
 
   panel: {
     position: "absolute",
@@ -217,11 +248,17 @@ const styles = StyleSheet.create({
     width: PANEL_WIDTH,
     height: SCREEN_H,
     backgroundColor: "#071025",
-    paddingTop: 100,
+    paddingTop: 60,
     paddingHorizontal: 18,
+
+    // 🔥 important for bottom tab bar
+    paddingBottom: TAB_BAR_HEIGHT + 20,
   },
 
-  header: { alignItems: "center", marginBottom: 25 },
+  header: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
 
   avatarWrap: {
     width: 100,
@@ -231,35 +268,65 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
-    marginBottom: 12,
+    marginBottom: 8,
   },
 
-  avatar: { width: 100, height: 100, borderRadius: 999 },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 999,
+  },
 
   plusWrap: {
     width: 100,
     height: 100,
-    borderRadius: 999,
     justifyContent: "center",
     alignItems: "center",
   },
 
-  name: { color: "#fff", fontSize: 20, fontWeight: "700" },
-  email: { color: "#9CA3AF", marginTop: 4 },
+  name: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "700",
+    marginTop: 6,
+  },
+
+  email: {
+    color: "#9CA3AF",
+    marginTop: 2,
+  },
 
   section: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#123",
-    marginTop: 20,
+    marginTop: 16,
   },
 
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#123",
   },
 
-  rowText: { color: "#fff", marginLeft: 12, fontSize: 16 },
+  rowText: {
+    color: "#fff",
+    marginLeft: 12,
+    fontSize: 16,
+  },
+
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    marginTop: 24,
+  },
+
+  logoutText: {
+    color: "#ff4d4d",
+    marginLeft: 10,
+    fontSize: 16,
+    fontWeight: "600",
+  },
 });
