@@ -11,11 +11,14 @@ export default function TabLayout() {
   const { token, loading } = useContext(AuthContext);
 
   const onProfilePress = () => {
-    if (loading) return; // context still restoring token
+    if (loading) return;
+
     if (!token) {
       router.replace("/login");
     } else {
-      router.push("/profile"); // open slide panel
+      // 👇 IMPORTANT FIX: RANDOM KEY for forcing fresh mount
+      const randomKey = Date.now().toString();
+      router.push(`/profile?key=${randomKey}`);
     }
   };
 
