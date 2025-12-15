@@ -103,15 +103,16 @@ app.post(
 app.get("/api/me", authenticateToken, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: Number(req.userId) },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        createdAt: true,
-        avatarUrl: true,
-      },
-    });
+  where: { id: Number(req.userId) },
+  select: {
+    id: true,
+    email: true,
+    name: true,
+    createdAt: true,
+    avatarUrl: true, // 🔥 THIS IS IMPORTANT
+  },
+});
+
 
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json({ user });
