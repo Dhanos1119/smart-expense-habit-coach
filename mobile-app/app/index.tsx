@@ -1,20 +1,20 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useContext } from "react";
 import { SafeAreaView, ActivityIndicator, Text } from "react-native";
-import { router, useNavigationContainerRef } from "expo-router";
+import { router } from "expo-router";
+import { AuthContext } from "../src/context/AuthContext";
 
 export default function Index() {
-  const navReady = useNavigationContainerRef();
+  const { token, loading } = useContext(AuthContext);
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      // Navigate ONLY when Expo Router is ready
-      if (navReady.isReady()) {
-        router.replace("/login");
-      }
-    }, 10);
+    if (loading) return;
 
-    return () => clearTimeout(timeout);
-  }, [navReady]);
+    if (token) {
+      router.replace("/(tabs)");
+    } else {
+      router.replace("/login");
+    }
+  }, [loading, token]);
 
   return (
     <SafeAreaView

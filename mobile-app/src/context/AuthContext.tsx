@@ -1,4 +1,3 @@
-// mobile-app/src/context/AuthContext.tsx
 import React, { createContext, useEffect, useState } from "react";
 import * as SecureStore from "expo-secure-store";
 import api from "../api/api";
@@ -7,85 +6,107 @@ export const AuthContext = createContext<any>(null);
 
 const LC_KEY = "accessToken";
 
+/* ---------------- STORAGE HELPERS ---------------- */
+
 async function readTokenFromStorage(): Promise<string | null> {
-  // Try SecureStore (native)
   try {
     const v = await SecureStore.getItemAsync(LC_KEY);
     if (v) return v;
-  } catch (e) {
-    // ignore
-  }
-  // Fallback to localStorage (web)
+  } catch {}
+
   try {
     if (typeof window !== "undefined" && window.localStorage) {
       return window.localStorage.getItem(LC_KEY);
     }
-  } catch (e) {}
+  } catch {}
+
   return null;
 }
 
 async function saveTokenToStorage(token: string) {
   try {
     await SecureStore.setItemAsync(LC_KEY, token);
-  } catch (e) {}
+  } catch {}
+
   try {
     if (typeof window !== "undefined" && window.localStorage) {
       window.localStorage.setItem(LC_KEY, token);
     }
-  } catch (e) {}
+  } catch {}
 }
 
 async function removeTokenFromStorage() {
   try {
     await SecureStore.deleteItemAsync(LC_KEY);
-  } catch (e) {}
+  } catch {}
+
   try {
     if (typeof window !== "undefined" && window.localStorage) {
       window.localStorage.removeItem(LC_KEY);
     }
-  } catch (e) {}
+  } catch {}
 }
+
+/* ---------------- PROVIDER ---------------- */
 
 export const AuthProvider = ({ children }: any) => {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  /* 🔥 RESTORE LOGIN ON APP START */
   useEffect(() => {
     (async () => {
       try {
         const t = await readTokenFromStorage();
-       if (t) {
+if (t) {
   api.defaults.headers.common["Authorization"] = `Bearer ${t}`;
+  setToken(t); // 🔥 THIS LINE WAS MISSING
+
   try {
-    const resp = await api.get("/api/me");   // <-- use /api/me
+    const resp = await api.get("/api/me");
     setUser(resp.data?.user ?? null);
-  } catch (e) { console.warn("profile fetch failed on restore", e); }
+  } catch (e) {
+    console.warn("profile fetch failed on restore", e);
+  }
 }
+
       } catch (e) {
         console.warn("[Auth] restore error", e);
       } finally {
-        setLoading(false);
+        setLoading(false); // 🔥 MUST
       }
     })();
   }, []);
 
+  /* ---------------- LOGIN ---------------- */
+
   const login = async ({ email, password }: { email: string; password: string }) => {
     const res = await api.post("/api/auth/login", { email, password });
+
     const t = res.data?.accessToken || res.data?.token;
     if (!t) throw new Error("No token returned from server");
+
     await saveTokenToStorage(t);
     api.defaults.headers.common["Authorization"] = `Bearer ${t}`;
-    setToken(t);
+
+    setToken(t);               // 🔥 IMPORTANT
     if (res.data.user) setUser(res.data.user);
+
     return res.data;
   };
 
+  /* ---------------- LOGOUT ---------------- */
+
   const logout = async () => {
     try {
-      try { await api.post("/api/auth/logout"); } catch (e) {}
+      try {
+        await api.post("/api/auth/logout");
+      } catch {}
+
       await removeTokenFromStorage();
       delete api.defaults.headers.common["Authorization"];
+
       setToken(null);
       setUser(null);
     } catch (e) {
@@ -93,5 +114,17 @@ export const AuthProvider = ({ children }: any) => {
     }
   };
 
-  return <AuthContext.Provider value={{ token, user, loading, login, logout }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{
+        token,
+        user,
+        loading,
+        login,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };

@@ -1,9 +1,7 @@
-// app/(tabs)/_layout.tsx
 import React, { useContext } from "react";
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { TouchableOpacity, Platform } from "react-native";
-import { useRouter } from "expo-router";
+import { TouchableOpacity, Platform, Text } from "react-native";
 import { AuthContext } from "../../src/context/AuthContext";
 
 export default function TabLayout() {
@@ -16,7 +14,6 @@ export default function TabLayout() {
     if (!token) {
       router.push("/login");
     } else {
-      // 🔥 IMPORTANT: push, NOT replace
       router.push("/profile");
     }
   };
@@ -57,7 +54,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/* ADD EXPENSE */}
+      {/* ADD */}
       <Tabs.Screen
         name="add-expense"
         options={{
@@ -68,32 +65,43 @@ export default function TabLayout() {
         }}
       />
 
-      {/* PROFILE (DUMMY TAB) */}
+      {/* PROFILE (CUSTOM TAB — NO href ❌) */}
       <Tabs.Screen
-  name="dummy"
-  options={{
-    title: "Profile",
+        name="dummy"
+        options={{
+          title: "Profile",
+          tabBarButton: ({ accessibilityState }) => {
+            const focused = accessibilityState?.selected;
 
-    tabBarButton: () => (
-      <TouchableOpacity
-        onPress={openProfile}
-        activeOpacity={0.85}
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
+            return (
+              <TouchableOpacity
+                onPress={openProfile}
+                activeOpacity={0.85}
+                style={{
+                  flex: 1,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons
+                  name={focused ? "person" : "person-outline"}
+                  size={24}
+                  color={focused ? "#22C55E" : "#888"}
+                />
+                <Text
+                  style={{
+                    fontSize: 11,
+                    marginTop: 2,
+                    color: focused ? "#22C55E" : "#888",
+                  }}
+                >
+                  Profile
+                </Text>
+              </TouchableOpacity>
+            );
+          },
         }}
-      >
-        <Ionicons
-          name="person-circle-outline"
-          size={26}
-          color="#888"
-        />
-      </TouchableOpacity>
-    ),
-  }}
-/>
-
+      />
     </Tabs>
   );
 }

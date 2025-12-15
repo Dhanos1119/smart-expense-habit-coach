@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import api from "../src/api/api";
 import { AuthContext } from "../src/context/AuthContext";
+import { API_BASE } from "../src/constants/api";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const PANEL_WIDTH = Math.round(SCREEN_W * 0.75);
@@ -53,7 +54,9 @@ export default function ProfilePanel() {
 
         const user = res.data?.user || {};
         setProfile(user);
-        setLocalAvatarUri(user.avatarUrl || null);
+        setLocalAvatarUri(
+  user.avatarUrl ? `${API_BASE}${user.avatarUrl}` : null
+);
       } catch (err) {
         console.log("PROFILE API ERROR:", err);
       } finally {
@@ -118,25 +121,57 @@ export default function ProfilePanel() {
   /* ---------------------------------------------
      PICK IMAGE
   --------------------------------------------- */
-  const pickImage = async () => {
-    const { status } =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission required");
-      return;
-    }
+const pickImage = async () => {
+  const { status } =
+    await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
+  if (status !== "granted") {
+    Alert.alert("Permission required");
+    return;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 0.7,
+  });
+
+  if (result.canceled) return;
+
+  const localUri = result.assets[0].uri;
+  setLocalAvatarUri(localUri); // instant preview
+
+  const form = new FormData();
+  form.append("avatar", {
+    uri: localUri,
+    name: "avatar.jpg",
+    type: "image/jpeg",
+  } as any);
+
+  try {
+    await api.post("/profile/upload-avatar", form, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
     });
 
-    if (!result.canceled) {
-      setLocalAvatarUri(result.assets[0].uri);
-    }
-  };
+    // re-fetch user
+    const res = await api.get("/api/me");
+    const user = res.data.user;
+
+    setProfile(user);
+    setLocalAvatarUri(
+      user.avatarUrl ? `${API_BASE}${user.avatarUrl}` : null
+    );
+  } catch (err) {
+    console.log("UPLOAD ERROR", err);
+    Alert.alert("Upload failed");
+  }
+};
+
+
+    
 
   if (loading || authLoading) {
     return (
@@ -161,15 +196,18 @@ export default function ProfilePanel() {
       >
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={pickImage} style={styles.avatarWrap}>
-            {localAvatarUri ? (
-              <Image source={{ uri: localAvatarUri }} style={styles.avatar} />
-            ) : (
-              <View style={styles.plusWrap}>
-                <Ionicons name="add" size={34} color="#fff" />
-              </View>
-            )}
-          </TouchableOpacity>
+ <TouchableOpacity onPress={pickImage} style={styles.avatarWrap}>
+  {localAvatarUri ? (
+    <Image
+      source={{ uri: localAvatarUri }}
+      style={styles.avatar}
+    />
+  ) : (
+    <Ionicons name="person" size={48} color="#fff" />
+  )}
+</TouchableOpacity>
+
+
 
           <Text style={styles.name}>{profile?.name || "User"}</Text>
           <Text style={styles.email}>{profile?.email || "---"}</Text>

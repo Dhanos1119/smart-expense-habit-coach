@@ -1,3 +1,1 @@
-export const API_BASE = "http://YOUR_IP:4000";
-// example:
-// export const API_BASE = "http://192.168.1.10:4000";
+export const API_BASE = "http://172.20.10.6:4000";

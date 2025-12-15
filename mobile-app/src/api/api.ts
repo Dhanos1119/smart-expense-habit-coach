@@ -1,17 +1,32 @@
-// mobile-app/src/api.ts
 import axios from "axios";
 
-const BASE = "http://172.20.10.6:4000"; // <- replace with your PC IP or ngrok HTTPS url
+/**
+ * 🔥 IMPORTANT
+ * - Use your PC's local IP (same WiFi as mobile)
+ * - NO space, NO localhost for real device
+ */
+export const BASE = "http://172.20.10.6:4000";
 
 const api = axios.create({
   baseURL: BASE,
   timeout: 15000,
   headers: {
+    Accept: "application/json",
     "Content-Type": "application/json",
   },
 });
 
-// Optional: export the base in case you need it elsewhere
-export { BASE };
+/* ---------------------------------------------
+   OPTIONAL (BUT VERY USEFUL): LOG NETWORK ERRORS
+--------------------------------------------- */
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.message === "Network Error") {
+      console.error("❌ NETWORK ERROR → API not reachable:", BASE);
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;
