@@ -22,6 +22,8 @@ import { useExpenses } from "../../src/context/ExpensesContext";
 import { useHabits } from "../../src/context/HabitsContext";
 import { ThemedText as Text } from "@/components/themed-text";
 import { ThemedView as Card } from "@/components/themed-view";
+import { useContext } from "react";
+import { AuthContext } from "../../src/context/AuthContext";
 
 /* ----------------- helper utils ----------------- */
 function formatCurrency(amount: number, currency: string) {
@@ -41,6 +43,7 @@ function monthName(monthIndex: number) {
 
 export default function HomePage() {
   // existing contexts
+  const { user } = useContext(AuthContext);
   const { expenses, monthTotal, clearAllExpenses, monthlyBudget, setMonthlyBudget } = useExpenses();
   const { habits, toggleHabitToday, deleteHabit } = useHabits();
   const { selectedYear, selectedMonthIndex, setYear, setMonth } = useMonth();
@@ -243,7 +246,7 @@ async function openProfile() {
         {/* HEADER */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Hello, {profile?.name ?? "Dhanoo"} </Text>
+            <Text style={styles.greeting}>Hello, {user?.name ?? "User"} </Text>
             <Text style={styles.subGreeting}>Let’s keep your spending healthy today.</Text>
           </View>
 

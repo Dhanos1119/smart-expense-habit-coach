@@ -7,12 +7,12 @@ export default function Index() {
   const { token, loading } = useContext(AuthContext);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading) return; // ⏳ wait till token restore
 
     if (token) {
-      router.replace("/(tabs)");
+      router.replace("/(tabs)"); // ✅ auto login
     } else {
-      router.replace("/login");
+      router.replace("/login"); // ❌ no token → login
     }
   }, [loading, token]);
 
