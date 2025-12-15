@@ -70,32 +70,30 @@ export default function TabLayout() {
 
       {/* PROFILE (DUMMY TAB) */}
       <Tabs.Screen
-        name="dummy"
-        options={{
-          title: "Profile",
+  name="dummy"
+  options={{
+    title: "Profile",
 
-          // ❌ default tab navigation disable
-          href: null,
-
-          tabBarButton: () => (
-            <TouchableOpacity
-              onPress={openProfile}
-              activeOpacity={0.85}
-              style={{
-                flex: 1,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Ionicons
-                name="person-circle-outline"
-                size={26}
-                color="#888"
-              />
-            </TouchableOpacity>
-          ),
+    tabBarButton: () => (
+      <TouchableOpacity
+        onPress={openProfile}
+        activeOpacity={0.85}
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
         }}
-      />
+      >
+        <Ionicons
+          name="person-circle-outline"
+          size={26}
+          color="#888"
+        />
+      </TouchableOpacity>
+    ),
+  }}
+/>
+
     </Tabs>
   );
 }
