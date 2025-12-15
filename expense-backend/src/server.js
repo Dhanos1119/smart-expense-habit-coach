@@ -4,6 +4,10 @@ dotenv.config();
 
 import express from "express";
 import cors from "cors";
+import fs from "fs";
+import path from "path";
+import multer from "multer";
+import { fileURLToPath } from "url";
 import { PrismaClient } from "@prisma/client";
 
 // ROUTES & MIDDLEWARE
@@ -14,24 +18,99 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-
 const prisma = new PrismaClient();
 
-// ------------------------------
-// AUTH ROUTES
-// ------------------------------
+/* -------------------------------------------------
+   PATH FIX (ESM SAFE – WINDOWS SAFE)
+------------------------------------------------- */
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+/* -------------------------------------------------
+   UPLOADS FOLDER (SAFE + REQUIRED)
+------------------------------------------------- */
+const uploadsDir = path.resolve(__dirname, "../uploads");
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// serve uploaded images
+app.use("/uploads", express.static(uploadsDir));
+
+/* -------------------------------------------------
+   MULTER CONFIG (FINAL – WINDOWS SAFE)
+------------------------------------------------- */
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // 🔥 ALWAYS absolute, based on project root
+    cb(null, path.join(process.cwd(), "uploads"));
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `avatar-${req.userId}${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+});
+
+
+/* -------------------------------------------------
+   AUTH ROUTES
+------------------------------------------------- */
 app.use("/api/auth", authRoutes);
 
-// ------------------------------
-// PROTECTED ROUTES
-// ------------------------------
+/* -------------------------------------------------
+   PROFILE IMAGE UPLOAD (PROTECTED)
+------------------------------------------------- */
+app.post(
+  "/profile/upload-avatar",
+  authenticateToken,
+  upload.single("avatar"),
+  async (req, res) => {
+    try {
+      console.log("🔥 FILE:", req.file);
+      console.log("🔥 USER ID:", req.userId);
 
-// GET logged-in user info
+      if (!req.file) {
+        return res.status(400).json({ message: "No file received" });
+      }
+
+      const avatarUrl = `/uploads/${req.file.filename}`;
+
+      const user = await prisma.user.update({
+        where: { id: Number(req.userId) },
+        data: { avatarUrl },
+      });
+
+      console.log("🔥 USER UPDATED:", user);
+
+      res.json({ avatarUrl });
+    } catch (err) {
+      console.error("🔥 AVATAR UPLOAD ERROR FULL:", err);
+      res.status(500).json({ message: err.message });
+    }
+  }
+);
+
+
+/* -------------------------------------------------
+   GET LOGGED-IN USER INFO
+------------------------------------------------- */
 app.get("/api/me", authenticateToken, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: Number(req.userId) },
-      select: { id: true, email: true, name: true, createdAt: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        createdAt: true,
+        avatarUrl: true,
+      },
     });
 
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -42,7 +121,9 @@ app.get("/api/me", authenticateToken, async (req, res) => {
   }
 });
 
-// CREATE expense (protected)
+/* -------------------------------------------------
+   EXPENSE ROUTES (PROTECTED)
+------------------------------------------------- */
 app.post("/api/expenses", authenticateToken, async (req, res) => {
   try {
     const { amount, currency = "LKR", note } = req.body;
@@ -63,7 +144,6 @@ app.post("/api/expenses", authenticateToken, async (req, res) => {
   }
 });
 
-// GET all expenses of logged-in user
 app.get("/api/expenses", authenticateToken, async (req, res) => {
   try {
     const expenses = await prisma.expense.findMany({
@@ -78,7 +158,6 @@ app.get("/api/expenses", authenticateToken, async (req, res) => {
   }
 });
 
-// DELETE an expense (only allowed if it exists)
 app.delete("/api/expenses/:id", authenticateToken, async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -92,11 +171,14 @@ app.delete("/api/expenses/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// ------------------------------
+/* -------------------------------------------------
+   SERVER START & CLEANUP
+------------------------------------------------- */
 const port = process.env.PORT || 4000;
-const server = app.listen(port, () => console.log(`🚀 Server running on port ${port}`));
+const server = app.listen(port, () =>
+  console.log(`🚀 Server running on port ${port}`)
+);
 
-// Graceful shutdown to close Prisma connection
 const shutdown = async () => {
   console.log("Shutting down...");
   await prisma.$disconnect();

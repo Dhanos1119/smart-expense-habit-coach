@@ -38,9 +38,12 @@ router.post(
 
       return res.status(201).json({ user, token });
     } catch (err) {
-      console.error("Register error:", err);
-      return res.status(500).json({ message: "Server error" });
-    }
+  console.error("🔥 REGISTER ERROR FULL:", err);
+  return res.status(500).json({
+    message: "Server error",
+    error: err.message
+  });
+}
   }
 );
 

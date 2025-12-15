@@ -1,4 +1,3 @@
-// src/middleware/auth.js
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "change_this_secret";
@@ -11,7 +10,6 @@ console.log("[AUTH] Using JWT_SECRET:", JWT_SECRET.slice(0, 5) + "...");
  * Attaches req.userId from token payload.
  */
 export function authenticateToken(req, res, next) {
-  // Read Authorization header
   const authHeader = req.headers.authorization || req.headers.Authorization;
 
   console.log("[AUTH] Incoming Header:", authHeader);
@@ -41,8 +39,9 @@ export function authenticateToken(req, res, next) {
 
     console.log("[AUTH] ✔ Token valid. userId =", payload.userId);
 
-    // Attach userId to request
+    // 🔥 THIS IS CRITICAL
     req.userId = payload.userId;
+
     return next();
   } catch (err) {
     console.log("[AUTH] ❌ Token verify error:", err.message);

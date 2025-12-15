@@ -1,12 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  // no output here — let Prisma generate runtime files into node_modules/.prisma/client
 }
 
 datasource db {
@@ -14,23 +7,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ===== Models =====
-
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   password  String
   name      String?
   createdAt DateTime @default(now())
-  expenses  Expense[]
+
+  // ✅ OPPOSITE RELATION (IMPORTANT)
+  expenses Expense[]
+
+  avatarUrl String?
 }
 
 model Expense {
-  id        Int      @id @default(autoincrement())
-  amount    Float
-  currency  String   @default("LKR")
-  note      String?
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
+  id       Int     @id @default(autoincrement())
+  amount   Float
+  currency String  @default("LKR")
+  note     String?
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
   createdAt DateTime @default(now())
 }
