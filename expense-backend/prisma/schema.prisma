@@ -10,24 +10,26 @@ datasource db {
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
-  password  String
+
+  password  String?            // 👈 Google users-ku optional
+  provider  String   @default("local") // local | google | apple
+
   name      String?
+  avatarUrl String?
+
   createdAt DateTime @default(now())
 
-  // ✅ OPPOSITE RELATION (IMPORTANT)
   expenses Expense[]
-
-  avatarUrl String?
 }
 
 model Expense {
-  id       Int     @id @default(autoincrement())
-  amount   Float
-  currency String  @default("LKR")
-  note     String?
+  id        Int      @id @default(autoincrement())
+  amount    Float
+  currency  String   @default("LKR")
+  note      String?
 
-  userId Int
-  user   User @relation(fields: [userId], references: [id])
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
 }
