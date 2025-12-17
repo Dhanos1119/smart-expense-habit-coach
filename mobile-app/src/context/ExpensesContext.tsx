@@ -1,4 +1,3 @@
-// src/context/ExpensesContext.tsx
 import React, {
   createContext,
   useContext,
@@ -7,12 +6,14 @@ import React, {
   ReactNode,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import api from "../api/api";
 
+/* ---------------- TYPES ---------------- */
 export type Expense = {
   id: string;
   amount: number;
   title: string;
-  date: string; // "YYYY-MM-DD"
+  date: string; // YYYY-MM-DD
   category: string;
 };
 
@@ -20,13 +21,13 @@ type ExpensesContextType = {
   expenses: Expense[];
   monthTotal: number;
   hydrated: boolean;
-  addExpense: (e: Omit<Expense, "id">) => void;
+  addExpense: (e: Omit<Expense, "id">) => Promise<void>;
   updateExpense: (
     id: string,
     changes: Partial<Omit<Expense, "id">>
-  ) => void;
-  deleteExpense: (id: string) => void;
-  clearAllExpenses: () => void;
+  ) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
+  clearAllExpenses: () => Promise<void>;
   monthlyBudget: number | null;
   setMonthlyBudget: (amount: number | null) => void;
 };
@@ -38,9 +39,7 @@ const ExpensesContext = createContext<ExpensesContextType | undefined>(
 const STORAGE_KEY = "@my_expense_app__expenses";
 const BUDGET_KEY = "@my_expense_app__budget";
 
-// ---------------------------------------------
-// MONTH TOTAL
-// ---------------------------------------------
+/* ---------------- HELPERS ---------------- */
 function getCurrentMonthTotal(expenses: Expense[]): number {
   const now = new Date();
   const y = now.getFullYear();
@@ -54,45 +53,62 @@ function getCurrentMonthTotal(expenses: Expense[]): number {
     .reduce((sum, e) => sum + Number(e.amount || 0), 0);
 }
 
-// ---------------------------------------------
-// PROVIDER
-// ---------------------------------------------
+/* =====================================================
+   PROVIDER
+   ===================================================== */
 export function ExpensesProvider({ children }: { children: ReactNode }) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [monthTotal, setMonthTotal] = useState(0);
   const [hydrated, setHydrated] = useState(false);
-
   const [monthlyBudget, setMonthlyBudget] = useState<number | null>(null);
 
-  // ---------------------------------------------
-  // LOAD FROM STORAGE (expenses)
-  // ---------------------------------------------
-  useEffect(() => {
-    (async () => {
-      try {
-        const json = await AsyncStorage.getItem(STORAGE_KEY);
-        if (json) {
-          const raw = JSON.parse(json);
+  /* ---------------------------------------------------
+     1️⃣ LOAD FROM BACKEND (PRIMARY)
+     --------------------------------------------------- */
+  async function fetchExpensesFromApi() {
+    try {
+      const res = await api.get("/api/expenses");
+      const data: Expense[] = res.data;
 
-          const parsed: Expense[] = raw.map((e: any) => ({
-            ...e,
-            amount: Number(e.amount),
-          }));
+      setExpenses(data);
+      setMonthTotal(getCurrentMonthTotal(data));
 
-          setExpenses(parsed);
-          setMonthTotal(getCurrentMonthTotal(parsed));
-        }
-      } catch (err) {
-        console.warn("Failed to load expenses:", err);
-      } finally {
-        setHydrated(true);
+      // cache locally
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (err) {
+      console.warn("API failed, falling back to storage");
+      loadFromStorage();
+    } finally {
+      setHydrated(true);
+    }
+  }
+
+  /* ---------------------------------------------------
+     2️⃣ FALLBACK: LOAD FROM ASYNC STORAGE
+     --------------------------------------------------- */
+  async function loadFromStorage() {
+    try {
+      const json = await AsyncStorage.getItem(STORAGE_KEY);
+      if (json) {
+        const parsed: Expense[] = JSON.parse(json);
+        setExpenses(parsed);
+        setMonthTotal(getCurrentMonthTotal(parsed));
       }
-    })();
+    } catch (err) {
+      console.warn("Failed to load expenses:", err);
+    }
+  }
+
+  /* ---------------------------------------------------
+     INITIAL LOAD
+     --------------------------------------------------- */
+  useEffect(() => {
+    fetchExpensesFromApi();
   }, []);
 
-  // ---------------------------------------------
-  // LOAD BUDGET FROM STORAGE
-  // ---------------------------------------------
+  /* ---------------------------------------------------
+     LOAD BUDGET
+     --------------------------------------------------- */
   useEffect(() => {
     (async () => {
       try {
@@ -101,32 +117,13 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
           const num = Number(stored);
           if (!isNaN(num) && num > 0) setMonthlyBudget(num);
         }
-      } catch (err) {
-        console.warn("Failed to load budget:", err);
-      }
+      } catch {}
     })();
   }, []);
 
-  // ---------------------------------------------
-  // SAVE EXPENSES WHEN THEY CHANGE
-  // ---------------------------------------------
-  useEffect(() => {
-    if (!hydrated) return;
-
-    (async () => {
-      try {
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
-      } catch (err) {
-        console.warn("Failed to save expenses:", err);
-      }
-    })();
-
-    setMonthTotal(getCurrentMonthTotal(expenses));
-  }, [expenses, hydrated]);
-
-  // ---------------------------------------------
-  // SAVE BUDGET WHEN IT CHANGES
-  // ---------------------------------------------
+  /* ---------------------------------------------------
+     SAVE BUDGET
+     --------------------------------------------------- */
   useEffect(() => {
     (async () => {
       try {
@@ -135,70 +132,58 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
         } else {
           await AsyncStorage.setItem(BUDGET_KEY, String(monthlyBudget));
         }
-      } catch (err) {
-        console.warn("Failed to save budget:", err);
-      }
+      } catch {}
     })();
   }, [monthlyBudget]);
 
-  // ---------------------------------------------
-  // ADD EXPENSE (duplicate guard)
-  // ---------------------------------------------
-  function addExpense(e: Omit<Expense, "id">) {
-    setExpenses((prev) => {
-      const last = prev[0];
+  /* =====================================================
+     CRUD OPERATIONS (API FIRST)
+     ===================================================== */
 
-      if (
-        last &&
-        last.amount === e.amount &&
-        last.title === e.title &&
-        last.date === e.date &&
-        last.category === e.category
-      ) {
-        console.log("Duplicate add blocked:", e);
-        return prev;
-      }
+  async function addExpense(e: Omit<Expense, "id">) {
+    const res = await api.post("/api/expenses", e);
+    const created: Expense = res.data;
 
-      const id = `${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 8)}`;
-
-      return [{ id, ...e }, ...prev];
-    });
+    setExpenses((prev) => [created, ...prev]);
+    await AsyncStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([created, ...expenses])
+    );
   }
 
-  // ---------------------------------------------
-  // UPDATE EXPENSE
-  // ---------------------------------------------
-  function updateExpense(
+  async function updateExpense(
     id: string,
     changes: Partial<Omit<Expense, "id">>
   ) {
+    const res = await api.put(`/api/expenses/${id}`, changes);
+    const updated: Expense = res.data;
+
     setExpenses((prev) =>
-      prev.map((exp) => (exp.id === id ? { ...exp, ...changes } : exp))
+      prev.map((e) => (e.id === id ? updated : e))
     );
   }
 
-  // ---------------------------------------------
-  // DELETE EXPENSE
-  // ---------------------------------------------
-  function deleteExpense(id: string) {
-    setExpenses((prev) => prev.filter((exp) => exp.id !== id));
+  async function deleteExpense(id: string) {
+    await api.delete(`/api/expenses/${id}`);
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
   }
 
-  // ---------------------------------------------
-  // CLEAR ALL EXPENSES
-  // ---------------------------------------------
-  function clearAllExpenses() {
+  async function clearAllExpenses() {
+    await api.delete("/api/expenses");
     setExpenses([]);
-    AsyncStorage.removeItem(STORAGE_KEY).catch((err) =>
-      console.warn("Failed to clear storage:", err)
-    );
+    await AsyncStorage.removeItem(STORAGE_KEY);
   }
 
-  // ---------------------------------------------
-  // CONTEXT VALUE
-  // ---------------------------------------------
+  /* ---------------------------------------------------
+     RE-CALCULATE MONTH TOTAL
+     --------------------------------------------------- */
+  useEffect(() => {
+    setMonthTotal(getCurrentMonthTotal(expenses));
+  }, [expenses]);
+
+  /* ---------------------------------------------------
+     CONTEXT VALUE
+     --------------------------------------------------- */
   const value: ExpensesContextType = {
     expenses,
     monthTotal,
@@ -218,13 +203,13 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// ---------------------------------------------
-// HOOK
-// ---------------------------------------------
+/* =====================================================
+   HOOK
+   ===================================================== */
 export function useExpenses() {
   const ctx = useContext(ExpensesContext);
   if (!ctx) {
-    throw new Error("useExpenses must be used within an ExpensesProvider");
+    throw new Error("useExpenses must be used within ExpensesProvider");
   }
   return ctx;
 }
