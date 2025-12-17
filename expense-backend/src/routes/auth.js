@@ -107,7 +107,6 @@ router.post("/google", async (req, res) => {
     if (!idToken)
       return res.status(400).json({ message: "idToken missing" });
 
-    // ✅ Verify Google token
     const ticket = await googleClient.verifyIdToken({
       idToken,
       audience: process.env.GOOGLE_CLIENT_ID,
@@ -128,7 +127,7 @@ router.post("/google", async (req, res) => {
           name,
           avatarUrl: picture,
           provider: "google",
-          password: null, // ✅ NO dummy password
+          password: null,
         },
       });
     }
@@ -162,7 +161,6 @@ router.post("/apple", async (req, res) => {
     if (!identityToken)
       return res.status(400).json({ message: "identityToken missing" });
 
-    // ⚠️ Apple token decode (basic – prod needs verification)
     const decoded = jwt.decode(identityToken);
     const email = decoded?.email;
 
@@ -193,6 +191,43 @@ router.post("/apple", async (req, res) => {
   } catch (err) {
     console.error("🔥 APPLE AUTH ERROR:", err);
     return res.status(401).json({ message: "Apple authentication failed" });
+  }
+});
+
+/* ======================================================
+   🔥 GET CURRENT USER (TOKEN RESTORE)
+   GET /api/me
+   ====================================================== */
+router.get("/me", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader)
+      return res.status(401).json({ message: "No token provided" });
+
+    const token = authHeader.split(" ")[1];
+    if (!token)
+      return res.status(401).json({ message: "Invalid token format" });
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatarUrl: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user)
+      return res.status(401).json({ message: "User not found" });
+
+    return res.json({ user });
+  } catch (err) {
+    console.error("❌ /me error:", err.message);
+    return res.status(401).json({ message: "Unauthorized" });
   }
 });
 

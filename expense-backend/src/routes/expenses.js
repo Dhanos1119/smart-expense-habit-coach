@@ -6,58 +6,92 @@ const router = express.Router();
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET;
 
-/* ---------------- AUTH MIDDLEWARE ---------------- */
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET is not defined");
+}
+
+/* ================= AUTH MIDDLEWARE ================= */
 function requireAuth(req, res, next) {
-  const auth = req.headers.authorization;
-  if (!auth) return res.status(401).json({ message: "No token" });
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "No token provided" });
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  if (!token || token === "null" || token === "undefined") {
+    return res.status(401).json({ message: "Invalid token" });
+  }
 
   try {
-    const token = auth.split(" ")[1];
     const decoded = jwt.verify(token, JWT_SECRET);
     req.userId = decoded.userId;
     next();
   } catch {
-    return res.status(401).json({ message: "Invalid token" });
+    return res.status(401).json({ message: "Token invalid" });
   }
 }
 
-/* ---------------- ADD EXPENSE ---------------- */
+/* ================= ADD EXPENSE ================= */
 router.post("/", requireAuth, async (req, res) => {
-  const { amount, note } = req.body;
+  try {
+    const { amount, note, category, date } = req.body;
 
-  if (!amount)
-    return res.status(400).json({ message: "Amount required" });
+    if (!amount || isNaN(amount) || Number(amount) <= 0) {
+      return res.status(400).json({ message: "Invalid amount" });
+    }
 
-  const expense = await prisma.expense.create({
-    data: {
-      amount: Number(amount),
-      note,
-      userId: req.userId,
-    },
-  });
+    const expense = await prisma.expense.create({
+      data: {
+        amount: Number(amount),
+        note: note || "",
+        category: category && category.trim() !== "" ? category : "Other", // 🔥 FIX
+        date: date ? new Date(date) : undefined,                          // 🔥 FIX
+        userId: req.userId,
+      },
+    });
 
-  res.status(201).json(expense);
+    res.status(201).json(expense);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to add expense" });
+  }
 });
 
-/* ---------------- GET ALL EXPENSES ---------------- */
+/* ================= GET ALL EXPENSES ================= */
 router.get("/", requireAuth, async (req, res) => {
-  const expenses = await prisma.expense.findMany({
-    where: { userId: req.userId },
-    orderBy: { createdAt: "desc" },
-  });
+  try {
+    const expenses = await prisma.expense.findMany({
+      where: { userId: req.userId },
+      orderBy: { createdAt: "desc" },
+    });
 
-  res.json(expenses);
+    res.json(expenses);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch expenses" });
+  }
 });
 
-/* ---------------- DELETE EXPENSE ---------------- */
+/* ================= DELETE EXPENSE ================= */
 router.delete("/:id", requireAuth, async (req, res) => {
-  const id = Number(req.params.id);
+  try {
+    const id = Number(req.params.id);
 
-  await prisma.expense.delete({
-    where: { id },
-  });
+    const expense = await prisma.expense.findFirst({
+      where: { id, userId: req.userId },
+    });
 
-  res.json({ success: true });
+    if (!expense) {
+      return res.status(404).json({ message: "Expense not found" });
+    }
+
+    await prisma.expense.delete({ where: { id } });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to delete expense" });
+  }
 });
 
 export default router;

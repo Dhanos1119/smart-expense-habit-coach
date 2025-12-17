@@ -8,28 +8,25 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-
-  password  String?            // 👈 Google users-ku optional
-  provider  String   @default("local") // local | google | apple
-
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String?
+  provider  String    @default("local")
   name      String?
   avatarUrl String?
-
-  createdAt DateTime @default(now())
-
-  expenses Expense[]
+  createdAt DateTime  @default(now())
+  expenses  Expense[]
 }
 
 model Expense {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   amount    Float
-  currency  String   @default("LKR")
+  currency  String    @default("LKR")
   note      String?
-
+  category  String    @default("Other")   // 🔥 FIX
+  date      DateTime?                     // 🔥 FIX (expense date)
   userId    Int
-  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime  @default(now())
 
-  createdAt DateTime @default(now())
+  user      User      @relation(fields: [userId], references: [id])
 }
