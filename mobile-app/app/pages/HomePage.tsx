@@ -62,14 +62,18 @@ export default function HomePage() {
   // Totals & derived calculations
   const allTimeTotal = useMemo(() => expenses.reduce((sum, e) => sum + e.amount, 0), [expenses]);
 
-  const selectedMonthTotal = useMemo(() => {
-    return expenses
-      .filter((e) => {
-        const d = new Date(e.date);
-        return d.getFullYear() === selectedYear && d.getMonth() === selectedMonthIndex;
-      })
-      .reduce((s, e) => s + e.amount, 0);
-  }, [expenses, selectedYear, selectedMonthIndex]);
+const selectedMonthTotal = useMemo(() => {
+  return expenses
+    .filter((e) => {
+      const d = new Date(e.date || e.createdAt);
+      return (
+        d.getFullYear() === selectedYear &&
+        d.getMonth() === selectedMonthIndex
+      );
+    })
+    .reduce((s, e) => s + e.amount, 0);
+}, [expenses, selectedYear, selectedMonthIndex]);
+
 
   const { prevMonthYear, prevMonthIndex } = useMemo(() => {
     let y = selectedYear;
@@ -81,24 +85,32 @@ export default function HomePage() {
     return { prevMonthYear: y, prevMonthIndex: m };
   }, [selectedYear, selectedMonthIndex]);
 
-  const prevMonthTotal = useMemo(() => {
-    return expenses
-      .filter((e) => {
-        const d = new Date(e.date);
-        return d.getFullYear() === prevMonthYear && d.getMonth() === prevMonthIndex;
-      })
-      .reduce((s, e) => s + e.amount, 0);
-  }, [expenses, prevMonthYear, prevMonthIndex]);
+const prevMonthTotal = useMemo(() => {
+  return expenses
+    .filter((e) => {
+      const d = new Date(e.date || e.createdAt);
+      return (
+        d.getFullYear() === prevMonthYear &&
+        d.getMonth() === prevMonthIndex
+      );
+    })
+    .reduce((s, e) => s + e.amount, 0);
+}, [expenses, prevMonthYear, prevMonthIndex]);
 
-  const prevYearSameMonthTotal = useMemo(() => {
-    const prevYear = selectedYear - 1;
-    return expenses
-      .filter((e) => {
-        const d = new Date(e.date);
-        return d.getFullYear() === prevYear && d.getMonth() === selectedMonthIndex;
-      })
-      .reduce((s, e) => s + e.amount, 0);
-  }, [expenses, selectedYear, selectedMonthIndex]);
+
+const prevYearSameMonthTotal = useMemo(() => {
+  const prevYear = selectedYear - 1;
+  return expenses
+    .filter((e) => {
+      const d = new Date(e.date || e.createdAt);
+      return (
+        d.getFullYear() === prevYear &&
+        d.getMonth() === selectedMonthIndex
+      );
+    })
+    .reduce((s, e) => s + e.amount, 0);
+}, [expenses, selectedYear, selectedMonthIndex]);
+
 
   // trend calculations
   let trend: "up" | "down" | "same" = "same";
@@ -172,7 +184,16 @@ export default function HomePage() {
   }
 
   const today = getTodayStr();
-  const recentExpenses = useMemo(() => expenses.slice(0, 5), [expenses]);
+  const recentExpenses = useMemo(() => {
+  return [...expenses]
+    .sort((a, b) => {
+      const da = new Date(a.date || a.createdAt).getTime();
+      const db = new Date(b.date || b.createdAt).getTime();
+      return db - da; // newest first
+    })
+    .slice(0, 5);
+}, [expenses]);
+
   const hasExpenses = expenses.length > 0;
 
   const chipStyle: any = {

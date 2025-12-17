@@ -46,14 +46,18 @@ export default function AnalyticsPage() {
   const { selectedYear, selectedMonthIndex } = useMonth();
 
   // filter expenses for selected month/year
-  const monthExpenses = useMemo(
-    () =>
-      expenses.filter((e) => {
-        const d = new Date(e.date);
-        return d.getFullYear() === selectedYear && d.getMonth() === selectedMonthIndex;
-      }),
-    [expenses, selectedYear, selectedMonthIndex]
-  );
+const monthExpenses = useMemo(
+  () =>
+    expenses.filter((e) => {
+      const d = new Date(e.date || e.createdAt);
+      return (
+        d.getFullYear() === selectedYear &&
+        d.getMonth() === selectedMonthIndex
+      );
+    }),
+  [expenses, selectedYear, selectedMonthIndex]
+);
+
 
   // group by category and total
   const { categoryTotals, monthTotal } = useMemo(() => {
@@ -61,7 +65,12 @@ export default function AnalyticsPage() {
     let total = 0;
     for (const e of monthExpenses) {
       total += e.amount;
-      map.set(e.category, (map.get(e.category) || 0) + e.amount);
+      const category = e.category && e.category.trim() !== ""
+  ? e.category
+  : "Other";
+
+map.set(category, (map.get(category) || 0) + e.amount);
+
     }
     const arr = Array.from(map.entries())
       .map(([category, amount]) => ({ category, amount }))

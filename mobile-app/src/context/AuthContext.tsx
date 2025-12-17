@@ -59,6 +59,7 @@ export const AuthProvider = ({ children }: any) => {
     (async () => {
       try {
         const t = await readTokenFromStorage();
+
         if (t) {
           api.defaults.headers.common["Authorization"] = `Bearer ${t}`;
           setToken(t);
@@ -119,6 +120,15 @@ export const AuthProvider = ({ children }: any) => {
     }
   };
 
+  /* ================= 🔥 GET TOKEN (ADD EXPENSE USES THIS) ================= */
+
+  const getToken = async (): Promise<string | null> => {
+    if (token) return token;
+
+    const t = await readTokenFromStorage();
+    return t;
+  };
+
   /* ================= LOGOUT ================= */
 
   const logout = async () => {
@@ -141,6 +151,7 @@ export const AuthProvider = ({ children }: any) => {
         loading,
         login,          // email + password
         loginWithToken, // google / apple
+        getToken,       // 🔥 ADD EXPENSE WILL USE
         logout,
       }}
     >

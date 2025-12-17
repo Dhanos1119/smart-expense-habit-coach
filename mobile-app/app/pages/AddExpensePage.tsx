@@ -1,4 +1,3 @@
-// app/pages/AddExpensePage.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -38,11 +37,11 @@ export default function AddExpensePage() {
   const [category, setCategory] = useState<string | null>(null);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
-  const { addExpense } = useExpenses();
+  const { addExpense } = useExpenses(); // 🔥 context handles backend
   const [error, setError] = useState("");
 
-  // Save Expense
-  function handleSave() {
+  /* ================= SAVE EXPENSE ================= */
+  async function handleSave() {
     setError("");
 
     const numAmount = Number(amount);
@@ -51,6 +50,7 @@ export default function AddExpensePage() {
       setError("Please enter a valid amount greater than 0.");
       return;
     }
+
     if (!title.trim()) {
       setError("Please enter a valid title.");
       return;
@@ -60,28 +60,27 @@ const payload = {
   amount: Number(amount),
   title: title.trim(),
   date: dateText,
-  category: category || "Other",
+  category: category && category.trim() !== "" ? category : "Other",
 };
 
-addExpense(payload);
 
+    try {
+      await addExpense(payload); // ✅ ONLY ONCE
+      Alert.alert("Success", "Expense saved successfully");
 
-    // 👉 Save into global store
-    addExpense(payload);
-
-    console.log("Saved Expense:", payload);
-    Alert.alert("Success", "Expense saved locally.");
-
-    // Reset fields
-    const now = new Date();
-    setAmount("");
-    setTitle("");
-    setSelectedDate(now);
-    setDateText(formatDate(now));
-    setCategory(null);
-    setShowCategoryPicker(false);
-    setShowDatePicker(false);
-    Keyboard.dismiss();
+      // Reset form
+      const now = new Date();
+      setAmount("");
+      setTitle("");
+      setSelectedDate(now);
+      setDateText(formatDate(now));
+      setCategory(null);
+      setShowCategoryPicker(false);
+      setShowDatePicker(false);
+      Keyboard.dismiss();
+    } catch (e) {
+      Alert.alert("Error", "Failed to save expense");
+    }
   }
 
   return (
@@ -117,7 +116,6 @@ addExpense(payload);
 
         {/* DATE */}
         <Text style={styles.fieldLabel}>Date (YYYY-MM-DD)</Text>
-
         <Pressable
           style={styles.dateBox}
           onPress={() => {
@@ -130,7 +128,6 @@ addExpense(payload);
           <Ionicons name="calendar-outline" size={20} color="#9ca3af" />
         </Pressable>
 
-        {/* Date Picker */}
         {showDatePicker && (
           <View
             style={{
@@ -146,9 +143,7 @@ addExpense(payload);
               display={Platform.OS === "ios" ? "spinner" : "calendar"}
               themeVariant="dark"
               onChange={(event, date) => {
-                if (event.type === "dismissed") return;
-                if (!date) return;
-
+                if (event.type === "dismissed" || !date) return;
                 setSelectedDate(date);
                 setDateText(formatDate(date));
               }}
@@ -158,7 +153,6 @@ addExpense(payload);
 
         {/* CATEGORY */}
         <Text style={styles.fieldLabel}>Category</Text>
-
         <Pressable
           style={styles.categoryBox}
           onPress={() => {

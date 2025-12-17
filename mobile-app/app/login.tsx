@@ -89,21 +89,24 @@ export default function LoginScreen() {
 
   /* ---------------- NORMAL LOGIN ---------------- */
   async function handleLogin() {
-    if (!email || !password) {
-      Alert.alert("Missing", "Enter email and password");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      await login({ email, password });
-      router.replace("/(tabs)");
-    } catch {
-      Alert.alert("Login failed", "Invalid email or password");
-    } finally {
-      setLoading(false);
-    }
+  if (!email || !password) {
+    Alert.alert("Missing", "Enter email and password");
+    return;
   }
+
+  try {
+    setLoading(true);
+
+    // 🔥 login() now saves token internally
+    await login({ email, password });
+
+    router.replace("/(tabs)");
+  } catch {
+    Alert.alert("Login failed", "Invalid email or password");
+  } finally {
+    setLoading(false);
+  }
+}
 
   return (
     <SafeAreaView style={styles.container}>
