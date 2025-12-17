@@ -9,6 +9,7 @@ import path from "path";
 import multer from "multer";
 import { fileURLToPath } from "url";
 import { PrismaClient } from "@prisma/client";
+import expenseRoutes from "./routes/expenses.js";
 
 // ROUTES & MIDDLEWARE
 import authRoutes from "./routes/auth.js";
@@ -21,6 +22,7 @@ const app = express();
 ------------------------------------------------- */
 app.use(cors());
 app.use(express.json());
+app.use("/api/expenses", expenseRoutes);
 
 const prisma = new PrismaClient();
 
