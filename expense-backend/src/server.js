@@ -10,6 +10,8 @@ import multer from "multer";
 import { fileURLToPath } from "url";
 import { PrismaClient } from "@prisma/client";
 import expenseRoutes from "./routes/expenses.js";
+import userRoutes from "./routes/user.js";
+
 
 // ROUTES & MIDDLEWARE
 import authRoutes from "./routes/auth.js";
@@ -23,6 +25,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use("/api/expenses", expenseRoutes);
+app.use("/api/user", userRoutes);
+
+app.get("/health", (req, res) => {
+  res.send("OK");
+});
+
+
 
 const prisma = new PrismaClient();
 
@@ -153,6 +162,8 @@ app.get("/api/expenses", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+
 
 /* -------------------------------------------------
    SERVER START

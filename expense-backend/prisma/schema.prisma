@@ -14,6 +14,7 @@ model User {
   provider  String    @default("local")
   name      String?
   avatarUrl String?
+  monthlyBudget Float? 
   createdAt DateTime  @default(now())
   expenses  Expense[]
 }
