@@ -14,15 +14,15 @@ export type Expense = {
   id: number;
   amount: number;
   currency?: string;
-  title: string;        // frontend name
+  title: string;
   category: string;
-  date: string;         // YYYY-MM-DD
+  date: string; // YYYY-MM-DD
   createdAt: string;
 };
 
 type AddExpensePayload = {
   amount: number;
-  title: string;        // UI uses title
+  title: string;
   category: string;
   date: string;
 };
@@ -31,17 +31,17 @@ type ExpensesContextType = {
   expenses: Expense[];
   loading: boolean;
 
-  // totals
   monthTotal: number;
 
-  // budget
+  // ✅ budget
   monthlyBudget: number | null;
   setMonthlyBudget: (v: number) => void;
 
-  // actions
   fetchExpenses: () => Promise<void>;
   addExpense: (payload: AddExpensePayload) => Promise<void>;
   clearAllExpenses: () => Promise<void>;
+  fetchMonthlyBudget: () => Promise<void>;
+
 };
 
 /* ================= CONTEXT ================= */
@@ -65,104 +65,140 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
 
     try {
       setLoading(true);
-      const res = await api.get("/api/expenses");
 
-      // 🔥 normalize backend → frontend shape
-      const normalized: Expense[] = (res.data || []).map((e: any) => ({
+      /* ---------- 1️⃣ FETCH EXPENSES ---------- */
+      const expRes = await api.get("/api/expenses");
+
+      const normalized: Expense[] = (expRes.data || []).map((e: any) => ({
         id: e.id,
-        amount: e.amount,
+        amount: Number(e.amount),
         currency: e.currency ?? "LKR",
-        title: e.note ?? "",                 // backend note → frontend title
-        category: e.category ?? "Other",
-        date: e.date ?? e.createdAt.slice(0, 10),
+        title: e.note ?? "",
+        category: e.category && e.category.trim() !== "" ? e.category : "Other",
+        date: e.date
+          ? e.date.slice(0, 10)
+          : e.createdAt.slice(0, 10),
         createdAt: e.createdAt,
       }));
 
       setExpenses(normalized);
+
+      /* ---------- 2️⃣ FETCH USER BUDGET ---------- */
+      const userRes = await api.get("/api/users/me");
+
+      if (
+        userRes.data &&
+        typeof userRes.data.monthlyBudget === "number"
+      ) {
+        setMonthlyBudget(userRes.data.monthlyBudget);
+      } else {
+        setMonthlyBudget(null);
+      }
     } catch (e) {
-      console.warn("Fetch expenses failed", e);
+      console.warn("Fetch expenses / budget failed", e);
     } finally {
       setLoading(false);
     }
   };
 
-  /* ================= ADD ================= */
+  /* ================= ADD EXPENSE ================= */
 
   const addExpense = async (payload: AddExpensePayload) => {
     if (!token) throw new Error("Not authenticated");
 
-    try {
-      // 🔥 IMPORTANT: map title → note
-      const res = await api.post("/api/expenses", {
-        amount: payload.amount,
-        note: payload.title,                     // ✅ FIX
-        category:
-          payload.category && payload.category.trim() !== ""
-            ? payload.category
-            : "Other",
-        date: payload.date,
-      });
+    const res = await api.post("/api/expenses", {
+      amount: payload.amount,
+      note: payload.title,
+      category:
+        payload.category && payload.category.trim() !== ""
+          ? payload.category
+          : "Other",
+      date: payload.date,
+    });
 
-      // 🔥 normalize response
-      const saved: Expense = {
-        id: res.data.id,
-        amount: res.data.amount,
-        currency: res.data.currency ?? "LKR",
-        title: res.data.note ?? "",
-        category: res.data.category ?? "Other",
-        date: res.data.date ?? res.data.createdAt.slice(0, 10),
-        createdAt: res.data.createdAt,
-      };
+    const saved: Expense = {
+      id: res.data.id,
+      amount: Number(res.data.amount),
+      currency: res.data.currency ?? "LKR",
+      title: res.data.note ?? "",
+      category:
+        res.data.category && res.data.category.trim() !== ""
+          ? res.data.category
+          : "Other",
+      date: res.data.date
+        ? res.data.date.slice(0, 10)
+        : res.data.createdAt.slice(0, 10),
+      createdAt: res.data.createdAt,
+    };
 
-      // instant UI update
-      setExpenses((prev) => [saved, ...prev]);
-    } catch (e) {
-      console.warn("Add expense failed", e);
-      throw e;
-    }
+    setExpenses((prev) => [saved, ...prev]);
   };
 
-  /* ================= CLEAR ALL ================= */
+  const fetchMonthlyBudget = async () => {
+  if (!token) return;
+
+  try {
+    const res = await api.get("/api/user/budget");
+    setMonthlyBudget(res.data?.monthlyBudget ?? null);
+  } catch (e) {
+    console.warn("Fetch budget failed", e);
+  }
+};
+
+
+  /* ================= CLEAR ================= */
 
   const clearAllExpenses = async () => {
-    if (!token) return;
-
-    try {
-      // backend delete-all route illa na
-      setExpenses([]);
-    } catch (e) {
-      console.warn("Clear expenses failed", e);
-    }
+    setExpenses([]);
   };
 
-  /* ================= AUTO LOAD ================= */
+  /* ================= AUTO LOAD ON LOGIN ================= */
 
-  useEffect(() => {
-    if (token) {
-      fetchExpenses();
-    } else {
-      setExpenses([]);
+useEffect(() => {
+  if (!token) {
+    setExpenses([]);
+    setMonthlyBudget(null);
+    return;
+  }
+
+  (async () => {
+    try {
+      setLoading(true);
+
+      // 🔥 Sequential – token header guaranteed
+      await fetchExpenses();
+      await fetchMonthlyBudget();
+
+    } catch (err) {
+      console.warn("Failed to load expense data on token restore", err);
+    } finally {
+      setLoading(false);
     }
-  }, [token]);
+  })();
+}, [token]);
 
-  /* ================= DERIVED TOTALS ================= */
 
-  const monthTotal = useMemo(() => {
-    return expenses.reduce((sum, e) => sum + e.amount, 0);
-  }, [expenses]);
+  /* ================= TOTAL ================= */
+
+  const monthTotal = useMemo(
+    () => expenses.reduce((sum, e) => sum + e.amount, 0),
+    [expenses]
+  );
 
   return (
     <ExpensesContext.Provider
-      value={{
-        expenses,
-        loading,
-        monthTotal,
-        monthlyBudget,
-        setMonthlyBudget,
-        fetchExpenses,
-        addExpense,
-        clearAllExpenses,
-      }}
+     value={{
+  expenses,
+  loading,
+  monthTotal,
+  monthlyBudget,
+  setMonthlyBudget,
+  fetchExpenses,
+  fetchMonthlyBudget,
+  addExpense,
+  clearAllExpenses,
+}}
+
     >
       {children}
     </ExpensesContext.Provider>

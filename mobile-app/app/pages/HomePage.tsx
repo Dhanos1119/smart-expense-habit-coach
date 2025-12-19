@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import axios from "axios";
+
 import * as SecureStore from "expo-secure-store";
 
 import { useMonth } from "../../src/context/MonthContext";
@@ -24,6 +24,8 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { ThemedView as Card } from "@/components/themed-view";
 import { useContext } from "react";
 import { AuthContext } from "../../src/context/AuthContext";
+import api from "../../src/api/api";
+
 
 /* ----------------- helper utils ----------------- */
 function formatCurrency(amount: number, currency: string) {
@@ -73,6 +75,16 @@ const selectedMonthTotal = useMemo(() => {
     })
     .reduce((s, e) => s + e.amount, 0);
 }, [expenses, selectedYear, selectedMonthIndex]);
+
+
+    
+useEffect(() => {
+  api
+    .get("/health")
+    .then(() => console.log("✅ API OK"))
+    .catch(() => console.log("❌ API FAIL"));
+}, []);
+
 
 
   const { prevMonthYear, prevMonthIndex } = useMemo(() => {
@@ -145,17 +157,21 @@ const prevYearSameMonthTotal = useMemo(() => {
   if (usage >= 0.9) budgetColor = "#EF4444";
   else if (usage >= 0.5) budgetColor = "#EAB308";
 
-  function handleSaveBudget() {
-    if (!budgetInput.trim()) return;
-    const value = Number(budgetInput);
-    if (isNaN(value) || value <= 0) {
-      Alert.alert("Invalid budget", "Please enter a valid number greater than 0.");
-      return;
-    }
-    setMonthlyBudget(value);
-    setBudgetInput("");
-    setIsEditingBudget(false);
+async function handleSaveBudget() {
+  if (!budgetInput.trim()) return;
+
+  const value = Number(budgetInput);
+  if (isNaN(value) || value <= 0) {
+    Alert.alert("Invalid budget", "Please enter a valid number greater than 0.");
+    return;
   }
+
+  await api.post("/api/user/budget", { monthlyBudget: value });
+
+  setMonthlyBudget(value);
+  setBudgetInput("");
+  setIsEditingBudget(false);
+}
 
   function goToAnalytics() {
     router.push("/(tabs)/explore");
@@ -226,7 +242,7 @@ const prevYearSameMonthTotal = useMemo(() => {
           return;
         }
 
-        const res = await axios.get("/api/users/me", {
+        const res = await api.get("/api/users/me", {
           baseURL: process.env.API_BASE_URL || "https://your-api.com",
           headers: { Authorization: `Bearer ${token}` },
         });

@@ -55,29 +55,48 @@ export const AuthProvider = ({ children }: any) => {
   const [loading, setLoading] = useState(true);
 
   /* 🔁 RESTORE SESSION ON APP START */
-  useEffect(() => {
-    (async () => {
-      try {
-        const t = await readTokenFromStorage();
+useEffect(() => {
+  (async () => {
+    try {
+      const t = await readTokenFromStorage();
 
-        if (t) {
-          api.defaults.headers.common["Authorization"] = `Bearer ${t}`;
-          setToken(t);
+      if (t) {
+        // ✅ set token in state
+        setToken(t);
 
-          try {
-            const resp = await api.get("/api/me");
-            setUser(resp.data?.user ?? null);
-          } catch (e) {
-            console.warn("Profile fetch failed on restore", e);
-          }
+        // ✅ set header ONLY if token exists
+        api.defaults.headers.common.Authorization = `Bearer ${t}`;
+
+        try {
+          // ✅ correct profile fetch
+          const resp = await api.get("/api/users/me");
+          setUser(resp.data?.user ?? null);
+        } catch (err) {
+          // 🔥 token invalid → FULL cleanup
+          console.warn("Profile fetch failed, clearing token", err);
+
+          setToken(null);
+          setUser(null);
+          delete api.defaults.headers.common.Authorization;
+          await removeTokenFromStorage();
         }
-      } catch (e) {
-        console.warn("[Auth] restore error", e);
-      } finally {
-        setLoading(false);
+      } else {
+        // 🔥 NO token → ensure header is gone
+        delete api.defaults.headers.common.Authorization;
       }
-    })();
-  }, []);
+    } catch (e) {
+      console.warn("[Auth] restore error", e);
+
+      setToken(null);
+      setUser(null);
+      delete api.defaults.headers.common.Authorization;
+    } finally {
+      setLoading(false);
+    }
+  })();
+}, []);
+
+
 
   /* ================= EMAIL + PASSWORD LOGIN ================= */
 
@@ -94,7 +113,12 @@ export const AuthProvider = ({ children }: any) => {
     if (!t) throw new Error("No token returned from server");
 
     await saveTokenToStorage(t);
-    api.defaults.headers.common["Authorization"] = `Bearer ${t}`;
+    if (t) {
+  api.defaults.headers.common["Authorization"] = `Bearer ${t}`;
+} else {
+  delete api.defaults.headers.common["Authorization"];
+}
+
 
     setToken(t);
     setUser(res.data.user);
