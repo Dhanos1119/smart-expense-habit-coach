@@ -69,7 +69,8 @@ router.get("/", requireAuth, async (req, res) => {
 
     res.json(expenses);
   } catch (err) {
-    res.status(500).json({ message: "Failed to fetch expenses" });
+     console.log("Fetch error:", err);
+  setUser(null);
   }
 });
 
