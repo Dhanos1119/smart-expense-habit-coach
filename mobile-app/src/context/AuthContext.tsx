@@ -4,7 +4,7 @@ import api from "../api/api";
 
 export const AuthContext = createContext<any>(null);
 
-const TOKEN_KEY = "accessToken_v2";
+const TOKEN_KEY = "accessToken_v3";
 
 /* ================= STORAGE HELPERS ================= */
 
