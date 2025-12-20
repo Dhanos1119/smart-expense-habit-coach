@@ -15,9 +15,9 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { router } from "expo-router";
 
-import { AuthContext } from "../src/context/AuthContext";
-import { useGoogleAuth } from "../src/auth/googleAuth";
-import api from "../src/api/api";
+import { AuthContext } from "../../src/context/AuthContext";
+import { useGoogleAuth } from "../../src/auth/googleAuth";
+import api from "../../src/api/api";
 import * as AppleAuthentication from "expo-apple-authentication";
 
 export default function LoginScreen() {
@@ -48,7 +48,7 @@ export default function LoginScreen() {
       // ✅ token-based login (NO dummy password)
       await loginWithToken(res.data.token);
 
-      router.replace("/(tabs)");
+      
     } catch (e) {
       Alert.alert("Google Login Failed");
     } finally {
@@ -79,7 +79,7 @@ export default function LoginScreen() {
       // ✅ token-based login
       await loginWithToken(res.data.token);
 
-      router.replace("/(tabs)");
+     
     } catch {
       Alert.alert("Apple Login Failed");
     } finally {
@@ -88,7 +88,9 @@ export default function LoginScreen() {
   }
 
   /* ---------------- NORMAL LOGIN ---------------- */
-  async function handleLogin() {
+async function handleLogin() {
+  console.log("LOGIN CLICKED", email, password);
+
   if (!email || !password) {
     Alert.alert("Missing", "Enter email and password");
     return;
@@ -96,17 +98,16 @@ export default function LoginScreen() {
 
   try {
     setLoading(true);
-
-    // 🔥 login() now saves token internally
     await login({ email, password });
-
     router.replace("/(tabs)");
-  } catch {
-    Alert.alert("Login failed", "Invalid email or password");
+  } catch (e) {
+    console.log("LOGIN ERROR", e);
+    Alert.alert("Login failed");
   } finally {
     setLoading(false);
   }
 }
+
 
   return (
     <SafeAreaView style={styles.container}>

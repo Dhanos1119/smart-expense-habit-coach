@@ -10,7 +10,9 @@ export async function fetchMe() {
     },
   });
 
-  if (!res.ok) throw new Error("Failed to fetch user");
+  if (!res.ok) console.log("Failed to fetch user");
+return null; // or []
+
 
   return res.json();
 }

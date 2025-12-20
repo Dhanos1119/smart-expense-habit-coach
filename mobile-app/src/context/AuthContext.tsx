@@ -55,48 +55,32 @@ export const AuthProvider = ({ children }: any) => {
   const [loading, setLoading] = useState(true);
 
   /* 🔁 RESTORE SESSION ON APP START */
-useEffect(() => {
-  (async () => {
-    try {
-      const t = await readTokenFromStorage();
+  useEffect(() => {
+    (async () => {
+      try {
+        const t = await readTokenFromStorage();
 
-      if (t) {
-        // ✅ set token in state
+        if (!t) {
+          setLoading(false);
+          return;
+        }
+
+        api.defaults.headers.common.Authorization = `Bearer ${t}`;
         setToken(t);
 
-        // ✅ set header ONLY if token exists
-        api.defaults.headers.common.Authorization = `Bearer ${t}`;
-
-        try {
-          // ✅ correct profile fetch
-          const resp = await api.get("/api/users/me");
-          setUser(resp.data?.user ?? null);
-        } catch (err) {
-          // 🔥 token invalid → FULL cleanup
-          console.warn("Profile fetch failed, clearing token", err);
-
-          setToken(null);
-          setUser(null);
-          delete api.defaults.headers.common.Authorization;
-          await removeTokenFromStorage();
-        }
-      } else {
-        // 🔥 NO token → ensure header is gone
+        const res = await api.get("/api/me");
+        setUser(res.data?.user ?? null);
+      } catch (e) {
+        // token invalid / expired
+        await removeTokenFromStorage();
         delete api.defaults.headers.common.Authorization;
+        setToken(null);
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      console.warn("[Auth] restore error", e);
-
-      setToken(null);
-      setUser(null);
-      delete api.defaults.headers.common.Authorization;
-    } finally {
-      setLoading(false);
-    }
-  })();
-}, []);
-
-
+    })();
+  }, []);
 
   /* ================= EMAIL + PASSWORD LOGIN ================= */
 
@@ -113,12 +97,7 @@ useEffect(() => {
     if (!t) throw new Error("No token returned from server");
 
     await saveTokenToStorage(t);
-    if (t) {
-  api.defaults.headers.common["Authorization"] = `Bearer ${t}`;
-} else {
-  delete api.defaults.headers.common["Authorization"];
-}
-
+    api.defaults.headers.common.Authorization = `Bearer ${t}`;
 
     setToken(t);
     setUser(res.data.user);
@@ -126,45 +105,34 @@ useEffect(() => {
     return res.data;
   };
 
-  /* ================= TOKEN-BASED LOGIN (GOOGLE / APPLE) ================= */
+  /* ================= TOKEN LOGIN (GOOGLE / APPLE) ================= */
 
   const loginWithToken = async (t: string) => {
     if (!t) throw new Error("Token missing");
 
     await saveTokenToStorage(t);
-    api.defaults.headers.common["Authorization"] = `Bearer ${t}`;
-
+    api.defaults.headers.common.Authorization = `Bearer ${t}`;
     setToken(t);
 
-    try {
-      const resp = await api.get("/api/me");
-      setUser(resp.data?.user ?? null);
-    } catch (e) {
-      console.warn("Profile fetch failed after token login", e);
-    }
+    const res = await api.get("/api/me");
+    setUser(res.data?.user ?? null);
   };
 
-  /* ================= 🔥 GET TOKEN (ADD EXPENSE USES THIS) ================= */
+  /* ================= GET TOKEN (FOR API CALLS) ================= */
 
-  const getToken = async (): Promise<string | null> => {
-    if (token) return token;
-
-    const t = await readTokenFromStorage();
+  const getToken = async () => {
+    const t = token ?? (await readTokenFromStorage());
+    if (t) api.defaults.headers.common.Authorization = `Bearer ${t}`;
     return t;
   };
 
   /* ================= LOGOUT ================= */
 
   const logout = async () => {
-    try {
-      await removeTokenFromStorage();
-      delete api.defaults.headers.common["Authorization"];
-
-      setToken(null);
-      setUser(null);
-    } catch (e) {
-      console.warn("[Auth] logout error", e);
-    }
+    await removeTokenFromStorage();
+    delete api.defaults.headers.common.Authorization;
+    setToken(null);
+    setUser(null);
   };
 
   return (
@@ -173,9 +141,9 @@ useEffect(() => {
         token,
         user,
         loading,
-        login,          // email + password
-        loginWithToken, // google / apple
-        getToken,       // 🔥 ADD EXPENSE WILL USE
+        login,
+        loginWithToken,
+        getToken,
         logout,
       }}
     >

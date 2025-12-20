@@ -14,7 +14,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
-import * as SecureStore from "expo-secure-store";
+
 
 import { useMonth } from "../../src/context/MonthContext";
 import { homeStyles as styles } from "../../src/styles/homeStyles";
@@ -75,15 +75,6 @@ const selectedMonthTotal = useMemo(() => {
     })
     .reduce((s, e) => s + e.amount, 0);
 }, [expenses, selectedYear, selectedMonthIndex]);
-
-
-    
-useEffect(() => {
-  api
-    .get("/health")
-    .then(() => console.log("✅ API OK"))
-    .catch(() => console.log("❌ API FAIL"));
-}, []);
 
 
 
@@ -173,6 +164,7 @@ async function handleSaveBudget() {
   setIsEditingBudget(false);
 }
 
+
   function goToAnalytics() {
     router.push("/(tabs)/explore");
   }
@@ -230,50 +222,10 @@ async function handleSaveBudget() {
   };
 
   /* ------------------ PROFILE fetch ------------------ */
-  useEffect(() => {
-    let cancelled = false;
-    async function loadProfile() {
-      setLoadingProfile(true);
-      try {
-        const token = await SecureStore.getItemAsync("accessToken");
-        if (!token) {
-          // Not signed in — keep profile null and don't crash
-          setProfile(null);
-          return;
-        }
 
-        const res = await api.get("/api/users/me", {
-          baseURL: process.env.API_BASE_URL || "https://your-api.com",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!cancelled) setProfile(res.data);
-      } catch (err: any) {
-        console.log("Profile fetch error:", err?.response?.data || err?.message);
-        // If token invalid or expired — clear it locally so future attempts fetch login
-        try {
-          await SecureStore.deleteItemAsync("accessToken");
-        } catch {}
-        if (!cancelled) setProfile(null);
-      } finally {
-        if (!cancelled) setLoadingProfile(false);
-      }
-    }
-    loadProfile();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // If user taps profile button: if signed in -> profile screen, else -> login screen
-async function openProfile() {
-  const token = await SecureStore.getItemAsync("accessToken");
-  if (!token) {
-    router.push("/login");
-    return;
-  }
-  router.push("/profile");
-}
+
 
 
   /* ------------------ UI render ------------------ */

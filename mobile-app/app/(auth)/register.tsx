@@ -12,8 +12,8 @@ import {
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
-import api from "../src/api/api";
-import { AuthContext } from "../src/context/AuthContext";
+import api from "../../src/api/api";
+import { AuthContext } from "../../src/context/AuthContext";
 
 export default function RegisterPage() {
   const router = useRouter();

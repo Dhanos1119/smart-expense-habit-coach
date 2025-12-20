@@ -155,27 +155,16 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
   /* ================= AUTO LOAD ON LOGIN ================= */
 
 useEffect(() => {
-  if (!token) {
+  if (token) {
+    fetchExpenses();
+    fetchMonthlyBudget();   // 🔥 THIS
+  } else {
     setExpenses([]);
     setMonthlyBudget(null);
-    return;
   }
-
-  (async () => {
-    try {
-      setLoading(true);
-
-      // 🔥 Sequential – token header guaranteed
-      await fetchExpenses();
-      await fetchMonthlyBudget();
-
-    } catch (err) {
-      console.warn("Failed to load expense data on token restore", err);
-    } finally {
-      setLoading(false);
-    }
-  })();
 }, [token]);
+
+
 
 
   /* ================= TOTAL ================= */
