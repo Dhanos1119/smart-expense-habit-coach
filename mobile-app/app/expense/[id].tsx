@@ -26,9 +26,12 @@ function formatDate(date: Date) {
 
 export default function ExpenseDetailsPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const expenseId = Number(id);
+
   const { expenses, updateExpense, deleteExpense } = useExpenses();
 
-  const expense = expenses.find((e) => e.id === id) || null;
+  const expense = expenses.find((e) => e.id === expenseId) || null;
+
 
   if (!expense) {
     return (
@@ -81,40 +84,40 @@ export default function ExpenseDetailsPage() {
       return;
     }
 
-    updateExpense(id as string, {
-      amount: numAmount,
-      title: title.trim(),
-      date: dateText,
-      category: category || "Other",
-    });
+    updateExpense(expenseId, {
+    amount: numAmount,
+    title: title.trim(),
+    date: dateText,
+    category: category || "Other",
+  });
 
-    Alert.alert("Updated", "Expense updated successfully.", [
-      {
-        text: "OK",
-        onPress: () => router.back(),
-      },
-    ]);
-  }
+  Alert.alert("Updated", "Expense updated successfully.", [
+    {
+      text: "OK",
+      onPress: () => router.back(),
+    },
+  ]);}
 
   function handleDelete() {
-    if (!id) return;
+  if (!expenseId) return;
 
-    Alert.alert(
-      "Delete expense",
-      "Are you sure you want to delete this expense?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            deleteExpense(id as string);
-            router.back();
-          },
+  Alert.alert(
+    "Delete expense",
+    "Are you sure you want to delete this expense?",
+    [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          deleteExpense(expenseId);
+          router.back();
         },
-      ]
-    );
-  }
+      },
+    ]
+  );
+}
+
 
   return (
     <SafeAreaView style={styles.screen}>

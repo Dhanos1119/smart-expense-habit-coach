@@ -20,12 +20,12 @@ import { useMonth } from "../../src/context/MonthContext";
 import { homeStyles as styles } from "../../src/styles/homeStyles";
 import { useExpenses } from "../../src/context/ExpensesContext";
 import { useHabits } from "../../src/context/HabitsContext";
-import { ThemedText as Text } from "@/components/themed-text";
-import { ThemedView as Card } from "@/components/themed-view";
+
+import { Text, View as Card } from "react-native";
+
 import { useContext } from "react";
 import { AuthContext } from "../../src/context/AuthContext";
 import api from "../../src/api/api";
-
 
 /* ----------------- helper utils ----------------- */
 function formatCurrency(amount: number, currency: string) {

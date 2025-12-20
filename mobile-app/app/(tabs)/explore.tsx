@@ -3,9 +3,10 @@ import React, { useMemo } from "react";
 import { SafeAreaView, ScrollView, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { G, Path } from "react-native-svg";
+import { Text, View as Card } from "react-native";
 
-import { ThemedText as Text } from "@/components/themed-text";
-import { ThemedView as Card } from "@/components/themed-view";
+
+
 import { analyticsStyles as styles } from "../../src/styles/analyticsStyles";
 
 import { useExpenses } from "../../src/context/ExpensesContext";

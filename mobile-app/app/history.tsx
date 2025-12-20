@@ -10,8 +10,8 @@ import { useExpenses } from "../src/context/ExpensesContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
-import { ThemedText as Text } from "@/components/themed-text";
-import { ThemedView as Card } from "@/components/themed-view";
+
+import { Text, View as Card } from "react-native";
 
 function formatCurrency(amount: number) {
   return `LKR ${amount.toLocaleString("en-LK")}`;

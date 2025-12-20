@@ -1,9 +1,12 @@
 // app/_layout.tsx
 import { useEffect } from "react";
 import { Stack } from "expo-router";
-import { ThemeProvider, DarkTheme } from "@react-navigation/native";
 import * as SplashScreen from "expo-splash-screen";
 
+// 🔥 Global Theme (our custom theme system)
+import { ThemeProvider as AppThemeProvider } from "../src/context/ThemeContext";
+
+// App contexts
 import { AuthProvider } from "../src/context/AuthContext";
 import { ExpensesProvider } from "../src/context/ExpensesContext";
 import { HabitsProvider } from "../src/context/HabitsContext";
@@ -26,7 +29,8 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ThemeProvider value={DarkTheme}>
+    // 🌗 OUR ThemeProvider (dark / light / system / auto-time)
+    <AppThemeProvider>
       <AuthProvider>
         <MonthProvider>
           <ExpensesProvider>
@@ -36,6 +40,6 @@ export default function RootLayout() {
           </ExpensesProvider>
         </MonthProvider>
       </AuthProvider>
-    </ThemeProvider>
+    </AppThemeProvider>
   );
 }

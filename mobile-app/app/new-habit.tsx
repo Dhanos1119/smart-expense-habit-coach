@@ -13,9 +13,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
-import { ThemedText as Text } from "@/components/themed-text";
-import { ThemedView as Card } from "@/components/themed-view";
+
 import { useHabits } from "../src/context/HabitsContext";
+import { Text, View as Card } from "react-native";
+
 
 // Set the native header title (removes the "(tabs)" segment)
 export const options = {

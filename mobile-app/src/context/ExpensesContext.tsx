@@ -30,19 +30,31 @@ type AddExpensePayload = {
 type ExpensesContextType = {
   expenses: Expense[];
   loading: boolean;
-
   monthTotal: number;
 
-  // ✅ budget
   monthlyBudget: number | null;
   setMonthlyBudget: (v: number) => void;
 
   fetchExpenses: () => Promise<void>;
-  addExpense: (payload: AddExpensePayload) => Promise<void>;
-  clearAllExpenses: () => Promise<void>;
   fetchMonthlyBudget: () => Promise<void>;
+  addExpense: (payload: AddExpensePayload) => Promise<void>;
 
+  // 🔥 ADD THESE
+  updateExpense: (
+    id: number,
+    payload: {
+      amount: number;
+      title: string;
+      category: string;
+      date: string;
+    }
+  ) => Promise<void>;
+
+  deleteExpense: (id: number) => Promise<void>;
+
+  clearAllExpenses: () => Promise<void>;
 };
+
 
 /* ================= CONTEXT ================= */
 
@@ -145,12 +157,69 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
   }
 };
 
+/* ================= UPDATE ================= */
+
+const updateExpense = async (
+  id: number,
+  payload: {
+    amount: number;
+    title: string;
+    category: string;
+    date: string;
+  }
+) => {
+  if (!token) throw new Error("Not authenticated");
+
+  const res = await api.put(`/api/expenses/${id}`, {
+    amount: payload.amount,
+    note: payload.title,
+    category:
+      payload.category && payload.category.trim() !== ""
+        ? payload.category
+        : "Other",
+    date: payload.date,
+  });
+
+  setExpenses((prev) =>
+    prev.map((e) =>
+      e.id === id
+        ? {
+            ...e,
+            amount: Number(res.data.amount),
+            title: res.data.note ?? "",
+            category:
+              res.data.category && res.data.category.trim() !== ""
+                ? res.data.category
+                : "Other",
+            date: res.data.date
+              ? res.data.date.slice(0, 10)
+              : e.date,
+          }
+        : e
+    )
+  );
+};
+
+/* ================= DELETE ================= */
+
+const deleteExpense = async (id: number) => {
+  if (!token) throw new Error("Not authenticated");
+
+  await api.delete(`/api/expenses/${id}`);
+
+  setExpenses((prev) => prev.filter((e) => e.id !== id));
+};
+
 
   /* ================= CLEAR ================= */
 
-  const clearAllExpenses = async () => {
-    setExpenses([]);
-  };
+const clearAllExpenses = async () => {
+  if (!token) return;
+
+  await api.delete("/api/expenses"); // if backend supports
+  setExpenses([]);
+};
+
 
   /* ================= AUTO LOAD ON LOGIN ================= */
 
@@ -182,6 +251,8 @@ useEffect(() => {
   monthTotal,
   monthlyBudget,
   setMonthlyBudget,
+  updateExpense,   // ✅
+  deleteExpense,   // ✅
   fetchExpenses,
   fetchMonthlyBudget,
   addExpense,
