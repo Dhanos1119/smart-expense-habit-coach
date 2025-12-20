@@ -8,7 +8,7 @@
     "icon": "./assets/images/icon.png",
 
     "scheme": "spendly",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
 
     "ios": {
       "supportsTablet": true,
