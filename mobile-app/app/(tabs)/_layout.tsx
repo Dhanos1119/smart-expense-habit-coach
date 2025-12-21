@@ -18,6 +18,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      key={colors.background} // 🔥 THIS IS THE MAGIC LINE
       screenOptions={{
         headerShown: false,
 
@@ -54,7 +55,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/* ADD */}
+      {/* ADD EXPENSE */}
       <Tabs.Screen
         name="add-expense"
         options={{

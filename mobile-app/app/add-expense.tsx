@@ -3,77 +3,156 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
-  StyleSheet,
+  ScrollView,
+  SafeAreaView,
+  Pressable,
   Alert,
+  Platform,
+  Keyboard,
 } from "react-native";
-import api from "../src/api/api";
-import { router } from "expo-router";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Picker } from "@react-native-picker/picker";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../src/context/ThemeContext";
+import { addExpenseStyles } from "../src/styles/addExpenseStyles";
+import { useExpenses } from "../src/context/ExpensesContext";
+
+const CATEGORIES = ["Food", "Travel", "Bills", "Shopping", "Other"];
+
+function formatDate(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
 
 export default function AddExpensePage() {
-  const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
+  const { colors } = useTheme();
+  const styles = addExpenseStyles(colors);
 
-  async function addExpense() {
-    if (!amount) {
-      Alert.alert("Enter amount");
+  const today = new Date();
+
+  const [amount, setAmount] = useState("");
+  const [title, setTitle] = useState("");
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [dateText, setDateText] = useState(formatDate(today));
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [category, setCategory] = useState<string | null>(null);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [error, setError] = useState("");
+
+  const { addExpense } = useExpenses();
+
+  async function handleSave() {
+    setError("");
+
+    const numAmount = Number(amount);
+    if (!amount.trim() || isNaN(numAmount) || numAmount <= 0) {
+      setError("Please enter a valid amount");
+      return;
+    }
+
+    if (!title.trim()) {
+      setError("Please enter a title");
       return;
     }
 
     try {
-      await api.post("/api/expenses", {
-        amount,
-        note,
+      await addExpense({
+        amount: numAmount,
+        title: title.trim(),
+        date: dateText,
+        category: category || "Other",
       });
 
-      router.replace("/(tabs)");
+      Alert.alert("Success", "Expense saved");
+      setAmount("");
+      setTitle("");
+      setSelectedDate(today);
+      setDateText(formatDate(today));
+      setCategory(null);
+      Keyboard.dismiss();
     } catch {
-      Alert.alert("Failed to add expense");
+      Alert.alert("Error", "Failed to save expense");
     }
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Add Expense</Text>
+    <SafeAreaView style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.contentContainer}>
+        <Text style={styles.title}>Add Expense 💵</Text>
 
-      <TextInput
-        placeholder="Amount"
-        keyboardType="numeric"
-        style={styles.input}
-        value={amount}
-        onChangeText={setAmount}
-      />
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-      <TextInput
-        placeholder="Note"
-        style={styles.input}
-        value={note}
-        onChangeText={setNote}
-      />
+        <Text style={styles.fieldLabel}>Amount (LKR)</Text>
+        <TextInput
+          style={styles.input}
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="numeric"
+          placeholder="e.g. 700"
+          placeholderTextColor={colors.subText}
+        />
 
-      <TouchableOpacity style={styles.btn} onPress={addExpense}>
-        <Text style={styles.btnText}>Save</Text>
-      </TouchableOpacity>
-    </View>
+        <Text style={styles.fieldLabel}>Title</Text>
+        <TextInput
+          style={styles.input}
+          value={title}
+          onChangeText={setTitle}
+          placeholder="e.g. Petrol, Food"
+          placeholderTextColor={colors.subText}
+        />
+
+        <Text style={styles.fieldLabel}>Date</Text>
+        <Pressable
+          style={styles.dateBox}
+          onPress={() => setShowDatePicker(!showDatePicker)}
+        >
+          <Text style={styles.dateText}>{dateText}</Text>
+          <Ionicons name="calendar-outline" size={20} color={colors.subText} />
+        </Pressable>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={selectedDate}
+            mode="date"
+            display={Platform.OS === "ios" ? "spinner" : "calendar"}
+            onChange={(_, d) => {
+              if (!d) return;
+              setSelectedDate(d);
+              setDateText(formatDate(d));
+            }}
+          />
+        )}
+
+        <Text style={styles.fieldLabel}>Category</Text>
+        <Pressable
+          style={styles.categoryBox}
+          onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+        >
+          <Text style={styles.categoryText}>
+            {category || "Choose category"}
+          </Text>
+          <Ionicons name="chevron-down" size={20} color={colors.subText} />
+        </Pressable>
+
+        {showCategoryPicker && (
+          <View style={styles.pickerWrapper}>
+            <Picker
+              selectedValue={category}
+              onValueChange={(v) => {
+                setCategory(v);
+                setShowCategoryPicker(false);
+              }}
+            >
+              {CATEGORIES.map((c) => (
+                <Picker.Item key={c} label={c} value={c} />
+              ))}
+            </Picker>
+          </View>
+        )}
+
+        <Pressable style={styles.saveButton} onPress={handleSave}>
+          <Text style={styles.saveButtonText}>Save Expense</Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#000" },
-  title: { color: "#fff", fontSize: 22, marginBottom: 20 },
-  input: {
-    backgroundColor: "#111",
-    color: "#fff",
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 12,
-  },
-  btn: {
-    backgroundColor: "#fff",
-    padding: 14,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  btnText: { color: "#000", fontWeight: "600" },
-});

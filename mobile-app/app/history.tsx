@@ -6,28 +6,26 @@ import {
   SafeAreaView,
   TouchableOpacity,
 } from "react-native";
-import { useExpenses } from "../src/context/ExpensesContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+
+import { useExpenses } from "../src/context/ExpensesContext";
 import { useTheme } from "../src/context/ThemeContext";
-
-
-
-import { Text, View as Card } from "react-native";
+import { Text } from "react-native";
 
 function formatCurrency(amount: number) {
   return `LKR ${amount.toLocaleString("en-LK")}`;
 }
 
 function formatDate(d: string) {
-  const date = new Date(d);
-  return date.toDateString(); // Example: Mon Dec 02 2025
+  return new Date(d).toDateString();
 }
 
 export default function HistoryPage() {
   const { expenses } = useExpenses();
+  const { colors } = useTheme();
 
-  // Group by date → { "2025-12-02": [ ...expenses ], ... }
+  /* GROUP BY DATE */
   const grouped = useMemo(() => {
     const map = new Map<string, any[]>();
 
@@ -42,13 +40,8 @@ export default function HistoryPage() {
   }, [expenses]);
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: "#020617" }}
-    >
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 20 }}
-      >
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView contentContainerStyle={{ padding: 20 }}>
         {/* HEADER */}
         <View
           style={{
@@ -58,51 +51,63 @@ export default function HistoryPage() {
             marginBottom: 20,
           }}
         >
-          <Text style={{ fontSize: 24, fontWeight: "700" }}>
+          <Text
+            style={{
+              fontSize: 24,
+              fontWeight: "700",
+              color: colors.text,
+            }}
+          >
             Expense History
           </Text>
 
-          {/* Back */}
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back-circle" size={30} color="#fff" />
+            <Ionicons
+              name="arrow-back-circle"
+              size={32}
+              color={colors.text}
+            />
           </TouchableOpacity>
         </View>
 
-        {/* IF NO EXPENSES */}
+        {/* EMPTY STATE */}
         {expenses.length === 0 ? (
-          <Card
+          <View
             style={{
               padding: 20,
               borderRadius: 16,
-              backgroundColor: "rgba(15, 23, 42, 0.9)",
+              backgroundColor: colors.card,
+              borderWidth: 1,
+              borderColor: colors.border,
             }}
           >
-            <Text style={{ fontSize: 14, opacity: 0.8 }}>
+            <Text style={{ color: colors.subText }}>
               No expenses recorded yet.
             </Text>
-          </Card>
+          </View>
         ) : (
           grouped.map(([date, list]) => (
-            <View key={date} style={{ marginBottom: 24 }}>
+            <View key={date} style={{ marginBottom: 26 }}>
               {/* DATE HEADER */}
               <Text
                 style={{
                   fontSize: 16,
-                  marginBottom: 10,
                   fontWeight: "600",
-                  opacity: 0.8,
+                  color: colors.subText,
+                  marginBottom: 10,
                 }}
               >
                 {formatDate(date)}
               </Text>
 
-              <Card
+              {/* CARD */}
+              <View
                 style={{
+                  backgroundColor: colors.card,
                   borderRadius: 18,
-                  paddingVertical: 6,
-                  backgroundColor: "rgba(15, 23, 42, 0.9)",
                   borderWidth: 1,
-                  borderColor: "rgba(148,163,184,0.25)",
+                  borderColor: colors.border,
+                  overflow: "hidden",
                 }}
               >
                 {list.map((e, idx) => (
@@ -115,43 +120,51 @@ export default function HistoryPage() {
                       })
                     }
                     style={{
-                      paddingVertical: 12,
-                      paddingHorizontal: 14,
+                      paddingVertical: 14,
+                      paddingHorizontal: 16,
                       borderBottomWidth:
                         idx === list.length - 1 ? 0 : 1,
-                      borderBottomColor: "rgba(148,163,184,0.15)",
+                      borderBottomColor: colors.border,
                       flexDirection: "row",
                       justifyContent: "space-between",
                       alignItems: "center",
                     }}
                   >
+                    {/* LEFT */}
                     <View>
                       <Text
                         style={{
                           fontSize: 15,
                           fontWeight: "600",
-                          marginBottom: 2,
+                          color: colors.text,
                         }}
                       >
                         {e.title}
                       </Text>
-                      <Text style={{ fontSize: 12, opacity: 0.6 }}>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          marginTop: 2,
+                          color: colors.subText,
+                        }}
+                      >
                         {e.category}
                       </Text>
                     </View>
 
+                    {/* AMOUNT */}
                     <Text
                       style={{
                         fontSize: 15,
                         fontWeight: "700",
-                        color: "#F97316",
+                        color: colors.warning,
                       }}
                     >
                       {formatCurrency(e.amount)}
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </Card>
+              </View>
             </View>
           ))
         )}

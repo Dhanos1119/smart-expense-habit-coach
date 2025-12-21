@@ -1,3 +1,3 @@
-import AddExpensePage from "../pages/AddExpensePage";
+import AddExpensePage from "../add-expense";
 
 export default AddExpensePage;
