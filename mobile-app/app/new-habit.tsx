@@ -1,4 +1,3 @@
-// app/new-habit.tsx
 import React, { useState } from "react";
 import {
   SafeAreaView,
@@ -10,6 +9,7 @@ import {
   Platform,
   Alert,
   Text,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -23,18 +23,31 @@ export const options = {
 export default function NewHabitPage() {
   const { colors, mode } = useTheme();
   const { addHabit } = useHabits();
-  const [title, setTitle] = useState("");
 
-  function handleSave() {
+  const [title, setTitle] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
     if (!title.trim()) {
-      Alert.alert("Habit name required", "Please enter a habit title.");
+      Alert.alert("Enter habit name", "Habit name cannot be empty");
       return;
     }
 
-    addHabit({ title: title.trim() });
-    Alert.alert("Habit added", "Your new habit has been created.", [
-      { text: "OK", onPress: () => router.back() },
-    ]);
+    if (saving) return; // 🔒 prevent double submit
+
+    try {
+      setSaving(true);
+
+      await addHabit({ title: title.trim() });
+
+      Alert.alert("Habit added", "Your new habit has been created.", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+    } catch (err) {
+      Alert.alert("Error", "Failed to add habit. Try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -104,6 +117,7 @@ export default function NewHabitPage() {
             onChangeText={setTitle}
             returnKeyType="done"
             onSubmitEditing={handleSave}
+            editable={!saving}
           />
 
           <Text style={[styles.helper, { color: colors.subText }]}>
@@ -113,13 +127,23 @@ export default function NewHabitPage() {
           <TouchableOpacity
             style={[
               styles.saveButton,
-              { backgroundColor: colors.success },
+              {
+                backgroundColor: colors.success,
+                opacity: saving ? 0.7 : 1,
+              },
             ]}
             onPress={handleSave}
             activeOpacity={0.85}
+            disabled={saving}
           >
-            <Ionicons name="checkmark" size={18} color="#022c22" />
-            <Text style={styles.saveText}>Save habit</Text>
+            {saving ? (
+              <ActivityIndicator color="#0F172A" />
+            ) : (
+              <>
+                <Ionicons name="checkmark" size={18} color="#022c22" />
+                <Text style={styles.saveText}>Save habit</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -131,7 +155,7 @@ export default function NewHabitPage() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#020617", // 🔥 deep black-blue
+    backgroundColor: "#020617",
     paddingHorizontal: 20,
     paddingTop: 24,
   },
@@ -148,7 +172,6 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.35)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -156,38 +179,30 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#FFFFFF",
   },
 
   card: {
     padding: 22,
     borderRadius: 24,
-    backgroundColor: "rgba(15,23,42,0.9)", // ✅ glass dark
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.25)",
   },
 
   label: {
     fontSize: 14,
-    color: "#9CA3AF",
     marginBottom: 6,
   },
 
   input: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.45)",
-    backgroundColor: "rgba(2,6,23,0.85)", // ✅ darker input
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 15,
-    color: "#F9FAFB",
     marginBottom: 12,
   },
 
   helper: {
     fontSize: 12,
-    color: "#9CA3AF",
     marginBottom: 22,
   },
 
@@ -196,7 +211,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "#22C55E", // ✅ KEEP GREEN
     paddingVertical: 14,
     borderRadius: 999,
   },

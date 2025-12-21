@@ -1,5 +1,5 @@
 // app/pages/HomePage.tsx
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ScrollView,
   TouchableOpacity,
@@ -8,77 +8,84 @@ import {
   Alert,
   TextInput,
   Text as RNText,
-  Image,
-  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
-
-
 import { useMonth } from "../../src/context/MonthContext";
-import { homeStyles as styles } from "../../src/styles/homeStyles";
+import { createHomeStyles } from "../../src/styles/homeStyles";
+
 import { useExpenses } from "../../src/context/ExpensesContext";
 import { useHabits } from "../../src/context/HabitsContext";
 import { useTheme } from "../../src/context/ThemeContext";
-
-
+import api from "../../src/api/api";
 import { Text, View as Card } from "react-native";
-
 import { useContext } from "react";
 import { AuthContext } from "../../src/context/AuthContext";
-import api from "../../src/api/api";
 
 /* ----------------- helper utils ----------------- */
 function formatCurrency(amount: number, currency: string) {
   return `${currency} ${amount.toLocaleString("en-LK")}`;
 }
+
 const DEV_OVERRIDE_DATE: string | null = null;
+
 function getTodayStr() {
   if (DEV_OVERRIDE_DATE) return DEV_OVERRIDE_DATE;
   return new Date().toISOString().slice(0, 10);
 }
+
 function monthName(monthIndex: number) {
   return [
-    "January","February","March","April","May","June","July","August","September","October","November","December",
+    "January","February","March","April","May","June",
+    "July","August","September","October","November","December",
   ][monthIndex];
 }
 /* -------------------------------------------------------------------- */
 
 export default function HomePage() {
-  // existing contexts
+  // contexts
   const { user } = useContext(AuthContext);
-  const { expenses, monthTotal, clearAllExpenses, monthlyBudget, setMonthlyBudget } = useExpenses();
+  const { colors } = useTheme();
+  const styles = useMemo(
+  () => createHomeStyles(colors),
+  [colors]
+);
+
+  const {
+    expenses,
+    monthTotal,
+    clearAllExpenses,
+    monthlyBudget,
+    setMonthlyBudget,
+  } = useExpenses();
+
   const { habits, toggleHabitToday, deleteHabit } = useHabits();
   const { selectedYear, selectedMonthIndex, setYear, setMonth } = useMonth();
   const router = useRouter();
-
 
   // UI state
   const [filter, setFilter] = useState<"month" | "all">("month");
   const [budgetInput, setBudgetInput] = useState("");
   const [isEditingBudget, setIsEditingBudget] = useState(false);
 
-  // PROFILE state
-  const [profile, setProfile] = useState<{ id: string; email: string; name?: string; profileUrl?: string } | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(false);
+  /* ------------------ totals ------------------ */
+  const allTimeTotal = useMemo(
+    () => expenses.reduce((sum, e) => sum + e.amount, 0),
+    [expenses]
+  );
 
-  // Totals & derived calculations
-  const allTimeTotal = useMemo(() => expenses.reduce((sum, e) => sum + e.amount, 0), [expenses]);
-
-const selectedMonthTotal = useMemo(() => {
-  return expenses
-    .filter((e) => {
-      const d = new Date(e.date || e.createdAt);
-      return (
-        d.getFullYear() === selectedYear &&
-        d.getMonth() === selectedMonthIndex
-      );
-    })
-    .reduce((s, e) => s + e.amount, 0);
-}, [expenses, selectedYear, selectedMonthIndex]);
-
-
+  const selectedMonthTotal = useMemo(() => {
+    return expenses
+      .filter((e) => {
+        const d = new Date(e.date || e.createdAt);
+        return (
+          d.getFullYear() === selectedYear &&
+          d.getMonth() === selectedMonthIndex
+        );
+      })
+      .reduce((s, e) => s + e.amount, 0);
+  }, [expenses, selectedYear, selectedMonthIndex]);
 
   const { prevMonthYear, prevMonthIndex } = useMemo(() => {
     let y = selectedYear;
@@ -90,17 +97,18 @@ const selectedMonthTotal = useMemo(() => {
     return { prevMonthYear: y, prevMonthIndex: m };
   }, [selectedYear, selectedMonthIndex]);
 
-const prevMonthTotal = useMemo(() => {
-  return expenses
-    .filter((e) => {
-      const d = new Date(e.date || e.createdAt);
-      return (
-        d.getFullYear() === prevMonthYear &&
-        d.getMonth() === prevMonthIndex
-      );
-    })
-    .reduce((s, e) => s + e.amount, 0);
-}, [expenses, prevMonthYear, prevMonthIndex]);
+  const prevMonthTotal = useMemo(() => {
+    return expenses
+      .filter((e) => {
+        const d = new Date(e.date || e.createdAt);
+        return (
+          d.getFullYear() === prevMonthYear &&
+          d.getMonth() === prevMonthIndex
+        );
+      })
+      .reduce((s, e) => s + e.amount, 0);
+  }, [expenses, prevMonthYear, prevMonthIndex]);
+
 
 
 const prevYearSameMonthTotal = useMemo(() => {
@@ -116,46 +124,70 @@ const prevYearSameMonthTotal = useMemo(() => {
     .reduce((s, e) => s + e.amount, 0);
 }, [expenses, selectedYear, selectedMonthIndex]);
 
+/* ------------------ trends ------------------ */
+let trend: "up" | "down" | "same" = "same";
+let trendPercent = 0;
 
-  // trend calculations
-  let trend: "up" | "down" | "same" = "same";
-  let trendPercent = 0;
-  if (prevYearSameMonthTotal === 0 && selectedMonthTotal > 0) {
-    trend = "up";
-    trendPercent = 100;
-  } else if (prevYearSameMonthTotal > 0) {
-    const diff = selectedMonthTotal - prevYearSameMonthTotal;
-    trendPercent = Math.round((Math.abs(diff) / prevYearSameMonthTotal) * 100);
-    trend = diff <= 0 ? "down" : "up";
-  }
+if (prevYearSameMonthTotal === 0 && selectedMonthTotal > 0) {
+  trend = "up";
+  trendPercent = 100;
+} else if (prevYearSameMonthTotal > 0) {
+  const diff = selectedMonthTotal - prevYearSameMonthTotal;
+  trendPercent = Math.round(
+    (Math.abs(diff) / prevYearSameMonthTotal) * 100
+  );
+  trend = diff <= 0 ? "down" : "up";
+}
 
-  let prevMonthTrend: "up" | "down" | "same" = "same";
-  let prevMonthPercent = 0;
-  if (prevMonthTotal === 0 && selectedMonthTotal > 0) {
-    prevMonthTrend = "up";
-    prevMonthPercent = 100;
-  } else if (prevMonthTotal > 0) {
-    const diff = selectedMonthTotal - prevMonthTotal;
-    prevMonthPercent = Math.round((Math.abs(diff) / prevMonthTotal) * 100);
-    prevMonthTrend = diff <= 0 ? "down" : "up";
-  }
+let prevMonthTrend: "up" | "down" | "same" = "same";
+let prevMonthPercent = 0;
 
-  const currentTotal = filter === "month" ? selectedMonthTotal : allTimeTotal;
-  const remaining =
-    monthlyBudget != null ? Math.max(monthlyBudget - (filter === "month" ? selectedMonthTotal : monthTotal), 0) : 0;
-  const usage =
-    monthlyBudget != null && monthlyBudget > 0 ? (filter === "month" ? selectedMonthTotal : monthTotal) / monthlyBudget : 0;
+if (prevMonthTotal === 0 && selectedMonthTotal > 0) {
+  prevMonthTrend = "up";
+  prevMonthPercent = 100;
+} else if (prevMonthTotal > 0) {
+  const diff = selectedMonthTotal - prevMonthTotal;
+  prevMonthPercent = Math.round(
+    (Math.abs(diff) / prevMonthTotal) * 100
+  );
+  prevMonthTrend = diff <= 0 ? "down" : "up";
+}
 
-  let budgetColor = "#22C55E";
-  if (usage >= 0.9) budgetColor = "#EF4444";
-  else if (usage >= 0.5) budgetColor = "#EAB308";
+/* ------------------ budget ------------------ */
+const currentTotal =
+  filter === "month" ? selectedMonthTotal : allTimeTotal;
 
+const remaining =
+  monthlyBudget != null
+    ? Math.max(
+        monthlyBudget -
+          (filter === "month" ? selectedMonthTotal : monthTotal),
+        0
+      )
+    : 0;
+
+const usage =
+  monthlyBudget != null && monthlyBudget > 0
+    ? (filter === "month"
+        ? selectedMonthTotal
+        : monthTotal) / monthlyBudget
+    : 0;
+
+// ✅ THEME SAFE budget color
+let budgetColor = colors.success;
+if (usage >= 0.9) budgetColor = colors.danger;
+else if (usage >= 0.5) budgetColor = colors.warning;
+
+/* ------------------ actions ------------------ */
 async function handleSaveBudget() {
   if (!budgetInput.trim()) return;
 
   const value = Number(budgetInput);
   if (isNaN(value) || value <= 0) {
-    Alert.alert("Invalid budget", "Please enter a valid number greater than 0.");
+    Alert.alert(
+      "Invalid budget",
+      "Please enter a valid number greater than 0."
+    );
     return;
   }
 
@@ -166,177 +198,164 @@ async function handleSaveBudget() {
   setIsEditingBudget(false);
 }
 
+function goToAnalytics() {
+  router.push("/(tabs)/explore");
+}
 
-  function goToAnalytics() {
-    router.push("/(tabs)/explore");
+function goPrevMonth() {
+  let y = selectedYear;
+  let m = selectedMonthIndex - 1;
+  if (m < 0) {
+    m = 11;
+    y -= 1;
   }
+  setYear(y);
+  setMonth(m);
+}
 
-  function goPrevMonth() {
-    let y = selectedYear;
-    let m = selectedMonthIndex - 1;
-    if (m < 0) {
-      m = 11;
-      y -= 1;
-    }
-    setYear(y);
-    setMonth(m);
+function goNextMonth() {
+  let y = selectedYear;
+  let m = selectedMonthIndex + 1;
+  if (m > 11) {
+    m = 0;
+    y += 1;
   }
+  setYear(y);
+  setMonth(m);
+}
 
-  function goNextMonth() {
-    let y = selectedYear;
-    let m = selectedMonthIndex + 1;
-    if (m > 11) {
-      m = 0;
-      y += 1;
-    }
-    setYear(y);
-    setMonth(m);
-  }
+/* ------------------ recent expenses ------------------ */
+const today = getTodayStr();
 
-  const today = getTodayStr();
-  const recentExpenses = useMemo(() => {
+const recentExpenses = useMemo(() => {
   return [...expenses]
     .sort((a, b) => {
       const da = new Date(a.date || a.createdAt).getTime();
       const db = new Date(b.date || b.createdAt).getTime();
-      return db - da; // newest first
+      return db - da;
     })
     .slice(0, 5);
 }, [expenses]);
 
-  const hasExpenses = expenses.length > 0;
 
-  const chipStyle: any = {
-    backgroundColor: "#0f1724",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 10,
-    alignSelf: "flex-start",
-  };
-  const chipTextStyle: any = {
-    color: "#cbd5e1",
-    marginLeft: 6,
-    fontSize: 13,
-  };
+ const hasExpenses = expenses.length > 0;
 
-  /* ------------------ PROFILE fetch ------------------ */
+const chipStyle: any = {
+  backgroundColor: colors.card,
+  borderWidth: 1,
+  borderColor: colors.border,
+  paddingVertical: 8,
+  paddingHorizontal: 12,
+  borderRadius: 18,
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 8,
+  marginTop: 10,
+  alignSelf: "flex-start",
+};
+
+const chipTextStyle: any = {
+  color: colors.subText,
+  marginLeft: 6,
+  fontSize: 13,
+};
+
+/* ------------------ UI render ------------------ */
+return (
+  <SafeAreaView
+  style={[styles.screen, { backgroundColor: colors.background }]}
+>
+
+<ScrollView
+  contentContainerStyle={[
+    styles.contentContainer,
+    { paddingBottom: 160 } // 👈 MUST
+  ]}
+  keyboardShouldPersistTaps="handled" // 👈 ADD THIS
+>
 
 
-  // If user taps profile button: if signed in -> profile screen, else -> login screen
 
+      {/* HEADER */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.greeting}>
+            Hello, {user?.name ?? "User"}
+          </Text>
+          <Text style={styles.subGreeting}>
+            Let’s keep your spending healthy today.
+          </Text>
+        </View>
+      </View>
 
+      {/* EXPENSE SUMMARY CARD */}
+      <Card style={[styles.card, styles.expenseCard]}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <TouchableOpacity onPress={goPrevMonth} style={{ padding: 10 }}>
+            <Ionicons
+              name="chevron-back"
+              size={20}
+              color={colors.text}
+            />
+          </TouchableOpacity>
 
-  /* ------------------ UI render ------------------ */
-  return (
-    <SafeAreaView style={styles.screen}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-        {/* HEADER */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Hello, {user?.name ?? "User"} </Text>
-            <Text style={styles.subGreeting}>Let’s keep your spending healthy today.</Text>
+          <View style={{ alignItems: "center", flex: 1 }}>
+            <Text style={styles.cardTitle}>
+              {monthName(selectedMonthIndex)} {selectedYear}
+            </Text>
+            <Text style={styles.cardSubtitle}>
+              {filter === "month" ? "Month to Date" : "All-time Spend"}
+            </Text>
           </View>
 
-          
+          <TouchableOpacity onPress={goNextMonth} style={{ padding: 10 }}>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={colors.text}
+            />
+          </TouchableOpacity>
         </View>
 
-        {/* EXPENSE SUMMARY CARD */}
-        <Card style={[styles.card, styles.expenseCard]}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", width: "100%", marginBottom: 6 }}>
-            <TouchableOpacity onPress={goPrevMonth} style={{ padding: 10 }}>
-              <Ionicons name="chevron-back" size={20} color="#cbd5e1" />
-            </TouchableOpacity>
+        <Text style={styles.expenseAmount}>
+          {formatCurrency(currentTotal, "LKR")}
+        </Text>
 
-            <View style={{ alignItems: "center", flex: 1 }}>
-              <Text style={styles.cardTitle}>
-                {monthName(selectedMonthIndex)} {selectedYear}
-              </Text>
-              <Text style={styles.cardSubtitle}>{filter === "month" ? "Month to Date" : "All-time Spend"}</Text>
-            </View>
-
-            <TouchableOpacity onPress={goNextMonth} style={{ padding: 10 }}>
-              <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
-            </TouchableOpacity>
+        <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
+          <View style={chipStyle}>
+            <Ionicons
+              name={prevMonthTrend === "down" ? "arrow-down" : "arrow-up"}
+              size={14}
+              color={
+                prevMonthTrend === "down"
+                  ? colors.success
+                  : colors.danger
+              }
+            />
+            <RNText style={chipTextStyle}>
+              {prevMonthPercent}%{" "}
+              {prevMonthTrend === "down" ? "less" : "more"} than{" "}
+              {monthName(prevMonthIndex)} {prevMonthYear}
+            </RNText>
           </View>
 
-          <Text style={styles.expenseAmount}>{formatCurrency(currentTotal, "LKR")}</Text>
-
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
-            <View style={chipStyle}>
-              <Ionicons name={prevMonthTrend === "down" ? "arrow-down" : "arrow-up"} size={14} color={prevMonthTrend === "down" ? "#4CAF50" : "#F44336"} />
-              <RNText style={chipTextStyle}>
-                {prevMonthPercent}% {prevMonthTrend === "down" ? "less" : "more"} than {monthName(prevMonthIndex)} {prevMonthYear}
-              </RNText>
-            </View>
-
-            <View style={chipStyle}>
-              <Ionicons name={trend === "down" ? "arrow-down" : "arrow-up"} size={14} color={trend === "down" ? "#4CAF50" : "#F44336"} />
-              <RNText style={chipTextStyle}>
-                {trendPercent}% {trend === "down" ? "less" : "more"} than {monthName(selectedMonthIndex)} {selectedYear - 1}
-              </RNText>
-            </View>
+          <View style={chipStyle}>
+            <Ionicons
+              name={trend === "down" ? "arrow-down" : "arrow-up"}
+              size={14}
+              color={
+                trend === "down" ? colors.success : colors.danger
+              }
+            />
+            <RNText style={chipTextStyle}>
+              {trendPercent}%{" "}
+              {trend === "down" ? "less" : "more"} than{" "}
+              {monthName(selectedMonthIndex)} {selectedYear - 1}
+            </RNText>
           </View>
-        </Card>
+        </View>
+      </Card>
 
-        {/* BUDGET CARD */}
-        <Card style={[styles.card, styles.budgetCard]}>
-          {monthlyBudget == null || isEditingBudget ? (
-            <>
-              <View style={styles.budgetHeaderRow}>
-                <Text style={styles.budgetLabel}>Set your monthly budget</Text>
-                {monthlyBudget != null && !isEditingBudget && (
-                  <TouchableOpacity onPress={() => setIsEditingBudget(true)} style={{ padding: 6 }}>
-                    <Ionicons name="pencil" size={18} color="#cbd5e1" />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <View style={styles.budgetInputRow}>
-                <TextInput style={styles.budgetInput} placeholder="e.g. 40000" placeholderTextColor="#6b7280" keyboardType="numeric" value={budgetInput} onChangeText={setBudgetInput} />
-                <TouchableOpacity style={styles.budgetSaveButton} onPress={handleSaveBudget}>
-                  <Text style={styles.budgetSaveText}>Save</Text>
-                </TouchableOpacity>
-
-                {isEditingBudget && (
-                  <TouchableOpacity
-                    onPress={() => {
-                      setBudgetInput("");
-                      setIsEditingBudget(false);
-                    }}
-                    style={{ marginLeft: 8, padding: 10 }}
-                  >
-                    <Text>Cancel</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </>
-          ) : (
-            <>
-              <View style={styles.budgetHeaderRow}>
-                <Text style={styles.budgetLabel}>Budget this month</Text>
-                <Text style={styles.budgetAmount}>{formatCurrency(monthlyBudget, "LKR")}</Text>
-                <TouchableOpacity onPress={() => setIsEditingBudget(true)} style={{ marginLeft: 8 }}>
-                  <Ionicons name="pencil" size={18} color="#cbd5e1" />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.budgetRow}>
-                <Text style={styles.budgetSmall}>Spent: {formatCurrency(filter === "month" ? selectedMonthTotal : monthTotal, "LKR")}</Text>
-                <Text style={styles.budgetSmall}>Remaining: {formatCurrency(remaining, "LKR")}</Text>
-              </View>
-
-              <View style={styles.budgetProgressBg}>
-                <View style={[styles.budgetProgressFill, { width: `${Math.min(usage * 100, 100)}%`, backgroundColor: budgetColor }]} />
-              </View>
-
-              {usage >= 0.9 ? <Text style={styles.budgetWarning}>You’re very close to your budget limit!</Text> : usage >= 0.5 ? <Text style={styles.budgetWarning}>You’ve used more than half of your budget.</Text> : null}
-            </>
-          )}
-        </Card>
 
         {/* QUICK ACTIONS */}
         <View style={styles.actionsContainer}>
@@ -370,10 +389,15 @@ async function handleSaveBudget() {
         </View>
 
         {/* DAILY HABITS */}
-        <Text style={styles.sectionTitle}>Daily Habits</Text>
+    <Text style={[styles.sectionTitle, { color: colors.text }]}>
+Daily Habits</Text>
         <View style={styles.habitsList}>
           {habits.map((habit) => {
-            const completedToday = habit.lastCompletedDate === today;
+            const completedToday =
+  !!habit.lastCompletedDate &&
+  habit.lastCompletedDate === today &&
+  habit.streak > 0;
+
 
             return (
               <TouchableOpacity
@@ -402,7 +426,16 @@ async function handleSaveBudget() {
                   </View>
                 </View>
 
-                <View style={[styles.checkbox, completedToday && { backgroundColor: "#22C55E", borderColor: "#22C55E" }]}>
+                <View
+  style={[
+    styles.checkbox,
+    completedToday && {
+      backgroundColor: colors.success,
+      borderColor: colors.success,
+    },
+  ]}
+>
+
                   {completedToday && <Ionicons name="checkmark" size={16} color="white" />}
                 </View>
               </TouchableOpacity>
@@ -421,7 +454,8 @@ async function handleSaveBudget() {
                 { text: "Delete", style: "destructive", onPress: () => clearAllExpenses() },
               ])
             }
-            style={{ backgroundColor: "#1F2933", padding: 10, borderRadius: 999 }}
+            style={{ backgroundColor: "#E3F2FD"
+, padding: 10, borderRadius: 999 }}
           >
             <Ionicons name="trash-outline" size={25} color="#EF4444" />
           </TouchableOpacity>
