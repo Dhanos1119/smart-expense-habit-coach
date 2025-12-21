@@ -9,31 +9,40 @@ import path from "path";
 import multer from "multer";
 import { fileURLToPath } from "url";
 import { PrismaClient } from "@prisma/client";
+
+import authRoutes from "./routes/auth.js";
 import expenseRoutes from "./routes/expenses.js";
 import userRoutes from "./routes/user.js";
+import habitsRoutes from "./routes/habits.routes.js";
 
-
-// ROUTES & MIDDLEWARE
-import authRoutes from "./routes/auth.js";
 import { authenticateToken } from "./middleware/auth.js";
 
 const app = express();
+const prisma = new PrismaClient();
 
 /* -------------------------------------------------
    MIDDLEWARE
 ------------------------------------------------- */
 app.use(cors());
 app.use(express.json());
+
+/* -------------------------------------------------
+   ROUTES
+------------------------------------------------- */
+app.use("/api/auth", authRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/user", userRoutes);
 
+/* 🔥 HABITS ROUTES */
+app.use("/api/habits", habitsRoutes);
+console.log("✅ Habits routes mounted at /api/habits");
+
+/* -------------------------------------------------
+   HEALTH CHECK
+------------------------------------------------- */
 app.get("/health", (req, res) => {
   res.send("OK");
 });
-
-
-
-const prisma = new PrismaClient();
 
 /* -------------------------------------------------
    PATH FIX (ESM SAFE)
@@ -50,16 +59,13 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// 🔥 STATIC FILE SERVE (CORRECT)
 app.use("/uploads", express.static(uploadsDir));
 
 /* -------------------------------------------------
    MULTER CONFIG
 ------------------------------------------------- */
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
+  destination: (req, file, cb) => cb(null, uploadsDir),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
     cb(null, `avatar-${req.userId}${ext}`);
@@ -68,13 +74,8 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
-
-/* -------------------------------------------------
-   AUTH ROUTES
-------------------------------------------------- */
-app.use("/api/auth", authRoutes);
 
 /* -------------------------------------------------
    PROFILE IMAGE UPLOAD
@@ -91,7 +92,7 @@ app.post(
 
       const avatarUrl = `/uploads/${req.file.filename}`;
 
-      const user = await prisma.user.update({
+      await prisma.user.update({
         where: { id: Number(req.userId) },
         data: { avatarUrl },
       });
@@ -127,43 +128,6 @@ app.get("/api/me", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-
-/* -------------------------------------------------
-   EXPENSE ROUTES
-------------------------------------------------- */
-app.post("/api/expenses", authenticateToken, async (req, res) => {
-  try {
-    const { amount, currency = "LKR", note } = req.body;
-
-    const expense = await prisma.expense.create({
-      data: {
-        amount: Number(amount),
-        currency,
-        note,
-        userId: Number(req.userId),
-      },
-    });
-
-    res.status(201).json({ expense });
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-app.get("/api/expenses", authenticateToken, async (req, res) => {
-  try {
-    const expenses = await prisma.expense.findMany({
-      where: { userId: Number(req.userId) },
-      orderBy: { createdAt: "desc" },
-    });
-
-    res.json({ expenses });
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-
 
 /* -------------------------------------------------
    SERVER START

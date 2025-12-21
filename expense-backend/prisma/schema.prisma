@@ -7,27 +7,61 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/* ================= USER ================= */
 model User {
-  id        Int       @id @default(autoincrement())
-  email     String    @unique
-  password  String?
-  provider  String    @default("local")
-  name      String?
-  avatarUrl String?
-  monthlyBudget Float? 
-  createdAt DateTime  @default(now())
-  expenses  Expense[]
+  id             Int      @id @default(autoincrement())
+  email          String   @unique
+  password       String?
+  provider       String   @default("local")
+  name           String?
+  avatarUrl      String?
+  monthlyBudget  Float?
+  createdAt      DateTime @default(now())
+
+  // relations
+  expenses         Expense[]
+  habits           Habit[]
+  habitCompletions HabitCompletion[]
 }
 
+/* ================= EXPENSE ================= */
 model Expense {
-  id        Int       @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   amount    Float
-  currency  String    @default("LKR")
+  currency  String   @default("LKR")
   note      String?
-  category  String    @default("Other")   // 🔥 FIX
-  date      DateTime?                     // 🔥 FIX (expense date)
+  category  String   @default("Other")
+  date      DateTime?
   userId    Int
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 
-  user      User      @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/* ================= HABIT ================= */
+model Habit {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String
+  icon      String
+  color     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completions HabitCompletion[]
+}
+
+/* ================= HABIT COMPLETION ================= */
+model HabitCompletion {
+  id        Int      @id @default(autoincrement())
+  habitId   Int
+  userId    Int
+  date      DateTime // YYYY-MM-DD (store midnight)
+  createdAt DateTime @default(now())
+
+  habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date]) // ❌ no double tick same day
 }
