@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import api from "../src/api/api";
 import { router } from "expo-router";
+import { useTheme } from "../src/context/ThemeContext";
 
 export default function AddExpensePage() {
   const [amount, setAmount] = useState("");

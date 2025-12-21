@@ -20,6 +20,8 @@ import { useMonth } from "../../src/context/MonthContext";
 import { homeStyles as styles } from "../../src/styles/homeStyles";
 import { useExpenses } from "../../src/context/ExpensesContext";
 import { useHabits } from "../../src/context/HabitsContext";
+import { useTheme } from "../../src/context/ThemeContext";
+
 
 import { Text, View as Card } from "react-native";
 

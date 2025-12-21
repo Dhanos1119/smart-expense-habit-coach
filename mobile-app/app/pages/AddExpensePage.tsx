@@ -13,6 +13,7 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Picker } from "@react-native-picker/picker";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../../src/context/ThemeContext";
 
 import { addExpenseStyles as styles } from "../../src/styles/addExpenseStyles";
 import { useExpenses } from "../../src/context/ExpensesContext";

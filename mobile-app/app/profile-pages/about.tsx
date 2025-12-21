@@ -1,4 +1,6 @@
 import { SafeAreaView, Text, StyleSheet } from "react-native";
+import { useTheme } from "../../src/context/ThemeContext";
+
 
 export default function AboutPage() {
   return (

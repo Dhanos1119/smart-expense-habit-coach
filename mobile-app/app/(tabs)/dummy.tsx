@@ -2,14 +2,15 @@
 import { useEffect } from "react";
 import { View } from "react-native";
 import { useRouter } from "expo-router";
+import { useTheme } from "../../src/context/ThemeContext";
 
 export default function DummyProfile() {
   const router = useRouter();
+  const { colors } = useTheme();
 
   useEffect(() => {
-    // profile panel open pannum
     router.push("/profile");
   }, []);
 
-  return <View style={{ flex: 1, backgroundColor: "#020617" }} />;
+  return <View style={{ flex: 1, backgroundColor: colors.background }} />;
 }

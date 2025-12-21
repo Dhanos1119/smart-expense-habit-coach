@@ -2,32 +2,32 @@ import React, { useContext } from "react";
 import { Tabs, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { TouchableOpacity, Platform, Text } from "react-native";
+
 import { AuthContext } from "../../src/context/AuthContext";
+import { useTheme } from "../../src/context/ThemeContext";
 
 export default function TabLayout() {
   const router = useRouter();
   const { token, loading } = useContext(AuthContext);
+  const { colors } = useTheme();
 
   const openProfile = () => {
     if (loading) return;
-
-    if (!token) {
-      router.push("/login");
-    } else {
-      router.push("/profile");
-    }
+    router.push(token ? "/profile" : "/login");
   };
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#22C55E",
-        tabBarInactiveTintColor: "#888",
+
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.subText,
+
         tabBarStyle: {
           height: 64,
           paddingBottom: Platform.OS === "android" ? 6 : 8,
-          backgroundColor: "#0a0f1a",
+          backgroundColor: colors.background,
           borderTopWidth: 0,
         },
       }}
@@ -65,7 +65,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/* PROFILE (CUSTOM TAB — NO href ❌) */}
+      {/* PROFILE */}
       <Tabs.Screen
         name="dummy"
         options={{
@@ -86,13 +86,13 @@ export default function TabLayout() {
                 <Ionicons
                   name={focused ? "person" : "person-outline"}
                   size={24}
-                  color={focused ? "#22C55E" : "#888"}
+                  color={focused ? colors.primary : colors.subText}
                 />
                 <Text
                   style={{
                     fontSize: 11,
                     marginTop: 2,
-                    color: focused ? "#22C55E" : "#888",
+                    color: focused ? colors.primary : colors.subText,
                   }}
                 >
                   Profile

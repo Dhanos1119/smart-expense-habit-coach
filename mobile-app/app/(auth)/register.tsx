@@ -12,12 +12,14 @@ import {
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
+import { useTheme } from "../../src/context/ThemeContext";
 import api from "../../src/api/api";
 import { AuthContext } from "../../src/context/AuthContext";
 
 export default function RegisterPage() {
   const router = useRouter();
   const { login } = useContext(AuthContext);
+  const { colors } = useTheme(); // ✅ theme colors
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -60,43 +62,58 @@ export default function RegisterPage() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       {/* ICON */}
-      <View style={styles.iconWrap}>
-        <Ionicons name="person-add-outline" size={34} color="#ffffff" />
+      <View style={[styles.iconWrap, { backgroundColor: colors.card }]}>
+        <Ionicons name="person-add-outline" size={34} color={colors.text} />
       </View>
 
       {/* TITLE */}
-      <Text style={styles.title}>Create account</Text>
-      <Text style={styles.subtitle}>Start tracking smarter</Text>
+      <Text style={[styles.title, { color: colors.text }]}>
+        Create account
+      </Text>
+      <Text style={[styles.subtitle, { color: colors.subText }]}>
+        Start tracking smarter
+      </Text>
 
       {/* INPUTS */}
       <View style={styles.inputWrap}>
         <TextInput
           placeholder="Name (optional)"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={colors.subText}
           value={name}
           onChangeText={setName}
-          style={styles.input}
+          style={[
+            styles.input,
+            { backgroundColor: colors.card, color: colors.text },
+          ]}
         />
 
         <TextInput
           placeholder="Email"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={colors.subText}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
-          style={styles.input}
+          style={[
+            styles.input,
+            { backgroundColor: colors.card, color: colors.text },
+          ]}
         />
 
         <TextInput
           placeholder="Password"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={colors.subText}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          style={styles.input}
+          style={[
+            styles.input,
+            { backgroundColor: colors.card, color: colors.text },
+          ]}
         />
       </View>
 
@@ -104,10 +121,14 @@ export default function RegisterPage() {
       <TouchableOpacity
         onPress={doRegister}
         disabled={loading}
-        style={[styles.registerBtn, loading && { opacity: 0.7 }]}
+        style={[
+          styles.registerBtn,
+          { backgroundColor: colors.primary },
+          loading && { opacity: 0.7 },
+        ]}
       >
         {loading ? (
-          <ActivityIndicator color="#000" />
+          <ActivityIndicator color="#fff" />
         ) : (
           <Text style={styles.registerText}>Register</Text>
         )}
@@ -115,18 +136,24 @@ export default function RegisterPage() {
 
       {/* LOGIN LINK */}
       <View style={styles.loginRow}>
-        <Text style={styles.loginText}>Already have an account?</Text>
+        <Text style={[styles.loginText, { color: colors.subText }]}>
+          Already have an account?
+        </Text>
         <TouchableOpacity onPress={() => router.push("/login")}>
-          <Text style={styles.loginLink}> Sign in</Text>
+          <Text style={[styles.loginLink, { color: colors.text }]}>
+            {" "}
+            Sign in
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
+
+/* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000000",
     alignItems: "center",
     paddingHorizontal: 24,
     paddingTop: 70,
@@ -136,7 +163,6 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: "#111111",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 22,
@@ -145,12 +171,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#ffffff",
   },
 
   subtitle: {
     fontSize: 14,
-    color: "#9ca3af",
     marginBottom: 34,
   },
 
@@ -159,18 +183,15 @@ const styles = StyleSheet.create({
   },
 
   input: {
-    backgroundColor: "#111111",
     padding: 14,
     borderRadius: 14,
     marginBottom: 14,
     fontSize: 15,
-    color: "#ffffff",
   },
 
   registerBtn: {
     width: "100%",
-    backgroundColor: "#ffffff",
-    paddingVertical: 13, // same height as login
+    paddingVertical: 13,
     borderRadius: 14,
     alignItems: "center",
     marginTop: 10,
@@ -178,7 +199,7 @@ const styles = StyleSheet.create({
   },
 
   registerText: {
-    color: "#000000",
+    color: "#ffffff",
     fontSize: 15,
     fontWeight: "600",
   },
@@ -187,12 +208,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
 
-  loginText: {
-    color: "#9ca3af",
-  },
+  loginText: {},
 
   loginLink: {
-    color: "#ffffff",
     fontWeight: "600",
   },
 });

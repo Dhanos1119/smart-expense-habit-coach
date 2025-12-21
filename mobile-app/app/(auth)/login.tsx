@@ -14,6 +14,7 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { router } from "expo-router";
+import { useTheme } from "../../src/context/ThemeContext";
 
 import { AuthContext } from "../../src/context/AuthContext";
 import { useGoogleAuth } from "../../src/auth/googleAuth";
@@ -21,175 +22,143 @@ import api from "../../src/api/api";
 import * as AppleAuthentication from "expo-apple-authentication";
 
 export default function LoginScreen() {
+  const { colors } = useTheme(); // ✅ theme colors
   const { login, loginWithToken } = useContext(AuthContext);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  /* ---------------- GOOGLE AUTH ---------------- */
   const [request, response, promptAsync] = useGoogleAuth();
 
   useEffect(() => {
     if (response?.type === "success") {
       const idToken = response.authentication?.idToken;
-      if (idToken) {
-        handleGoogleBackend(idToken);
-      }
+      if (idToken) handleGoogleBackend(idToken);
     }
   }, [response]);
 
   async function handleGoogleBackend(idToken: string) {
     try {
       setLoading(true);
-
       const res = await api.post("/api/auth/google", { idToken });
-
-      // ✅ token-based login (NO dummy password)
       await loginWithToken(res.data.token);
-
-      
-    } catch (e) {
+    } catch {
       Alert.alert("Google Login Failed");
     } finally {
       setLoading(false);
     }
   }
 
-  /* ---------------- APPLE AUTH ---------------- */
-  async function handleAppleLogin() {
+  async function handleLogin() {
+    if (!email || !password) {
+      Alert.alert("Missing", "Enter email and password");
+      return;
+    }
+
     try {
       setLoading(true);
-
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-        ],
-      });
-
-      if (!credential.identityToken) {
-        throw new Error("No Apple identity token");
-      }
-
-      const res = await api.post("/api/auth/apple", {
-        identityToken: credential.identityToken,
-      });
-
-      // ✅ token-based login
-      await loginWithToken(res.data.token);
-
-     
+      await login({ email, password });
+      router.replace("/(tabs)");
     } catch {
-      Alert.alert("Apple Login Failed");
+      Alert.alert("Login failed");
     } finally {
       setLoading(false);
     }
   }
 
-  /* ---------------- NORMAL LOGIN ---------------- */
-async function handleLogin() {
-  console.log("LOGIN CLICKED", email, password);
-
-  if (!email || !password) {
-    Alert.alert("Missing", "Enter email and password");
-    return;
-  }
-
-  try {
-    setLoading(true);
-    await login({ email, password });
-    router.replace("/(tabs)");
-  } catch (e) {
-    console.log("LOGIN ERROR", e);
-    Alert.alert("Login failed");
-  } finally {
-    setLoading(false);
-  }
-}
-
-
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.iconWrap}>
-        <Ionicons name="lock-closed-outline" size={36} color="#ffffff" />
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
+      <View style={[styles.iconWrap, { backgroundColor: colors.card }]}>
+        <Ionicons name="lock-closed-outline" size={36} color={colors.text} />
       </View>
 
-      <Text style={styles.title}>Welcome back</Text>
-      <Text style={styles.subtitle}>You’ve been missed!</Text>
+      <Text style={[styles.title, { color: colors.text }]}>
+        Welcome back
+      </Text>
+      <Text style={[styles.subtitle, { color: colors.subText }]}>
+        You’ve been missed!
+      </Text>
 
       <View style={styles.inputWrap}>
         <TextInput
           placeholder="Email"
-          placeholderTextColor="#9ca3af"
-          style={styles.input}
+          placeholderTextColor={colors.subText}
+          style={[
+            styles.input,
+            { backgroundColor: colors.card, color: colors.text },
+          ]}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
-          keyboardType="email-address"
         />
 
         <TextInput
           placeholder="Password"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={colors.subText}
           secureTextEntry
-          style={styles.input}
+          style={[
+            styles.input,
+            { backgroundColor: colors.card, color: colors.text },
+          ]}
           value={password}
           onChangeText={setPassword}
         />
       </View>
 
       <TouchableOpacity
-        style={[styles.signInBtn, loading && { opacity: 0.7 }]}
+        style={[styles.signInBtn, { backgroundColor: colors.primary }]}
         onPress={handleLogin}
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color="#000" />
+          <ActivityIndicator color="#fff" />
         ) : (
           <Text style={styles.signInText}>Sign In</Text>
         )}
       </TouchableOpacity>
 
-      <Text style={styles.orText}>or continue with</Text>
+      <Text style={[styles.orText, { color: colors.subText }]}>
+        or continue with
+      </Text>
 
       <View style={styles.socialRow}>
-        {/* GOOGLE */}
         <TouchableOpacity
-          style={styles.socialBtn}
+          style={[styles.socialBtn, { backgroundColor: colors.card }]}
           onPress={() => promptAsync()}
           disabled={!request || loading}
         >
-          <AntDesign name="google" size={22} color="#000" />
+          <AntDesign name="google" size={22} color={colors.text} />
         </TouchableOpacity>
 
-        {/* APPLE */}
         {Platform.OS === "ios" && (
           <TouchableOpacity
-            style={styles.socialBtn}
-            onPress={handleAppleLogin}
-            disabled={loading}
+            style={[styles.socialBtn, { backgroundColor: colors.card }]}
           >
-            <Ionicons name="logo-apple" size={22} color="#000" />
+            <Ionicons name="logo-apple" size={22} color={colors.text} />
           </TouchableOpacity>
         )}
       </View>
 
       <View style={styles.registerRow}>
-        <Text style={styles.registerText}>Not a member?</Text>
+        <Text style={{ color: colors.subText }}>Not a member?</Text>
         <TouchableOpacity onPress={() => router.push("/register")}>
-          <Text style={styles.registerLink}> Register now</Text>
+          <Text style={{ color: colors.primary, fontWeight: "600" }}>
+            {" "}
+            Register now
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
 
-/* ---------------- STYLES ---------------- */
+/* ---------- STATIC STYLES (NO COLORS HERE) ---------- */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000000",
     alignItems: "center",
     paddingHorizontal: 24,
     paddingTop: 70,
@@ -198,7 +167,6 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: "#111111",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 22,
@@ -206,40 +174,34 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#ffffff",
   },
   subtitle: {
     fontSize: 14,
-    color: "#9ca3af",
     marginBottom: 34,
   },
   inputWrap: {
     width: "100%",
   },
   input: {
-    backgroundColor: "#111111",
     padding: 14,
     borderRadius: 14,
     marginBottom: 14,
     fontSize: 15,
-    color: "#ffffff",
   },
   signInBtn: {
     width: "100%",
-    backgroundColor: "#ffffff",
     paddingVertical: 13,
     borderRadius: 14,
     alignItems: "center",
     marginBottom: 26,
   },
   signInText: {
-    color: "#000000",
+    color: "#ffffff",
     fontSize: 15,
     fontWeight: "600",
   },
   orText: {
     fontSize: 13,
-    color: "#9ca3af",
     marginBottom: 16,
   },
   socialRow: {
@@ -251,18 +213,10 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 16,
-    backgroundColor: "#ffffff",
     alignItems: "center",
     justifyContent: "center",
   },
   registerRow: {
     flexDirection: "row",
-  },
-  registerText: {
-    color: "#9ca3af",
-  },
-  registerLink: {
-    color: "#ffffff",
-    fontWeight: "600",
   },
 });

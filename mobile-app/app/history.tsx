@@ -9,6 +9,8 @@ import {
 import { useExpenses } from "../src/context/ExpensesContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useTheme } from "../src/context/ThemeContext";
+
 
 
 import { Text, View as Card } from "react-native";

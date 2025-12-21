@@ -19,6 +19,7 @@ import * as ImagePicker from "expo-image-picker";
 import api from "../src/api/api";
 import { AuthContext } from "../src/context/AuthContext";
 import { API_BASE } from "../src/constants/api";
+import { useTheme } from "../src/context/ThemeContext";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const PANEL_WIDTH = Math.round(SCREEN_W * 0.75);
@@ -184,11 +185,15 @@ const pickImage = async () => {
   return (
     <SafeAreaView style={styles.full}>
       {/* OVERLAY */}
-      <Pressable style={StyleSheet.absoluteFill} onPress={closePanel}>
-        <Animated.View
-          style={[styles.overlay, { opacity: overlayOpacity }]}
-        />
-      </Pressable>
+      <Animated.View
+  pointerEvents="none"   // 🔥 VERY IMPORTANT
+  style={[
+    StyleSheet.absoluteFill,
+    styles.overlay,
+    { opacity: overlayOpacity },
+  ]}
+/>
+
 
       {/* SIDE PANEL */}
       <Animated.View
@@ -264,7 +269,7 @@ const pickImage = async () => {
 const styles = StyleSheet.create({
   full: {
     flex: 1,
-    backgroundColor: "transparent",
+    backgroundColor: "#000103ff",
   },
 
   center: {

@@ -10,20 +10,31 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export type ThemeMode = "dark" | "light" | "system";
 
 const DarkColors = {
-  background: "#0B1020",
-  card: "#111827",
-  text: "#ffffff",
-  muted: "#94a3b8",
-  primary: "#22c55e",
+  background: "#020617",
+  card: "#020617",
+  text: "#E5E7EB",
+  subText: "#94A3B8",
+  border: "#1E293B",
+
+  primary: "#60A5FA",
+  success: "#34D399",
+  warning: "#FACC15",
+  danger: "#F87171",
 };
 
 const LightColors = {
-  background: "#f8fafc",
-  card: "#ffffff",
-  text: "#0f172a",
-  muted: "#64748b",
-  primary: "#16a34a",
+  background: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#0F172A",
+  subText: "#475569",
+  border: "#E2E8F0",
+
+  primary: "#2563EB",
+  success: "#16A34A",
+  warning: "#F59E0B",
+  danger: "#DC2626",
 };
+
 
 type ThemeContextType = {
   mode: ThemeMode;
@@ -33,41 +44,49 @@ type ThemeContextType = {
   autoTheme: boolean;
   setAutoTheme: (v: boolean) => void;
 
-  darkFrom: string;   // "19:00"
-  lightFrom: string;  // "06:00"
+  darkFrom: string;
+  lightFrom: string;
   setDarkFrom: (t: string) => void;
   setLightFrom: (t: string) => void;
 };
 
 const ThemeContext = createContext<ThemeContextType | null>(null);
 
+/* ================= TIME LOGIC ================= */
+
 function isNowInDarkTime(darkFrom: string, lightFrom: string) {
   const now = new Date();
-  const [dh, dm] = darkFrom.split(":").map(Number);
-  const [lh, lm] = lightFrom.split(":").map(Number);
 
-  const darkTime = new Date();
-  darkTime.setHours(dh, dm, 0);
+  const toMinutes = (t: string) => {
+    const [time, ap] = t.split(" ");
+    let [h, m] = time.split(":").map(Number);
+    if (ap === "PM" && h !== 12) h += 12;
+    if (ap === "AM" && h === 12) h = 0;
+    return h * 60 + m;
+  };
 
-  const lightTime = new Date();
-  lightTime.setHours(lh, lm, 0);
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const darkMin = toMinutes(darkFrom);
+  const lightMin = toMinutes(lightFrom);
 
-  if (darkTime < lightTime) {
-    return now >= darkTime && now < lightTime;
+  if (darkMin < lightMin) {
+    return nowMin >= darkMin && nowMin < lightMin;
   } else {
-    return now >= darkTime || now < lightTime;
+    return nowMin >= darkMin || nowMin < lightMin;
   }
 }
+
+/* ================= PROVIDER ================= */
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = Appearance.getColorScheme();
 
-  const [mode, setModeState] = useState<ThemeMode>("dark");
+  const [mode, setModeState] = useState<ThemeMode>("dark"); // ✅ default dark
   const [autoTheme, setAutoThemeState] = useState(false);
-  const [darkFrom, setDarkFromState] = useState("19:00");
-  const [lightFrom, setLightFromState] = useState("06:00");
+  const [darkFrom, setDarkFromState] = useState("7:00 PM");
+  const [lightFrom, setLightFromState] = useState("6:00 AM");
 
-  useEffect(() => {
+   useEffect(() => {
     (async () => {
       const storedMode = await AsyncStorage.getItem("themeMode");
       const storedAuto = await AsyncStorage.getItem("autoTheme");
@@ -82,24 +101,25 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const sub = AppState.addEventListener("change", () => {
-      applyAutoTheme();
-    });
-    applyAutoTheme();
+    if (!autoTheme) return;
+
+    const apply = () => {
+      const shouldDark = isNowInDarkTime(darkFrom, lightFrom);
+      setModeState(shouldDark ? "dark" : "light");
+    };
+
+    apply();
+    const sub = AppState.addEventListener("change", apply);
     return () => sub.remove();
   }, [autoTheme, darkFrom, lightFrom]);
 
-  function applyAutoTheme() {
-    if (!autoTheme) return;
-
-    const shouldDark = isNowInDarkTime(darkFrom, lightFrom);
-    setModeState(shouldDark ? "dark" : "light");
-  }
-
   function setMode(m: ThemeMode) {
-    setModeState(m);
-    AsyncStorage.setItem("themeMode", m);
-  }
+  setModeState(m);
+  setAutoThemeState(false); // 🔥 IMPORTANT
+  AsyncStorage.setItem("themeMode", m);
+  AsyncStorage.setItem("autoTheme", "false");
+}
+
 
   function setAutoTheme(v: boolean) {
     setAutoThemeState(v);
