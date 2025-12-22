@@ -1,5 +1,6 @@
 // app/pages/HomePage.tsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+
 import {
   ScrollView,
   TouchableOpacity,
@@ -11,6 +12,12 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import HabitCard from "@/components/HabitCard";
+import { fetchInsights } from "../../src/api/insights";
+import { sendBudgetNotification } from "../../src/utils/notifications";
+
+
+
 
 import { useMonth } from "../../src/context/MonthContext";
 import { createHomeStyles } from "../../src/styles/homeStyles";
@@ -44,6 +51,13 @@ function monthName(monthIndex: number) {
 /* -------------------------------------------------------------------- */
 
 export default function HomePage() {
+
+
+
+
+
+
+  
   // contexts
   const { user } = useContext(AuthContext);
   const { colors } = useTheme();
@@ -63,11 +77,27 @@ export default function HomePage() {
   const { habits, toggleHabitToday, deleteHabit } = useHabits();
   const { selectedYear, selectedMonthIndex, setYear, setMonth } = useMonth();
   const router = useRouter();
+  const [hideInsight, setHideInsight] = useState(false);
+  const [showAlert, setShowAlert] = useState(true);
+
+
 
   // UI state
   const [filter, setFilter] = useState<"month" | "all">("month");
   const [budgetInput, setBudgetInput] = useState("");
   const [isEditingBudget, setIsEditingBudget] = useState(false);
+
+const [insight, setInsight] = useState<null | {
+  usedPercent: number;
+  level: "safe" | "warning" | "danger";
+  message: string;
+}>(null);
+
+const [notified, setNotified] = useState(false);
+
+
+
+
 
   /* ------------------ totals ------------------ */
   const allTimeTotal = useMemo(
@@ -86,6 +116,47 @@ export default function HomePage() {
       })
       .reduce((s, e) => s + e.amount, 0);
   }, [expenses, selectedYear, selectedMonthIndex]);
+
+const localUsedPercent =
+  monthlyBudget && monthlyBudget > 0
+    ? Math.round((selectedMonthTotal / monthlyBudget) * 100)
+    : 0;
+
+
+useEffect(() => {
+  async function loadInsights() {
+    const data = await fetchInsights();
+    if (!data) return;
+
+    setInsight(data);
+
+    // 🔔 notify once at 90%+
+    if (data.usedPercent >= 90 && !notified) {
+      setNotified(true);
+      // notification handled globally (layout / utils)
+    }
+  }
+
+  loadInsights();
+}, [selectedMonthIndex, selectedYear]);
+
+useEffect(() => {
+  if (!monthlyBudget || monthlyBudget <= 0) return;
+
+  if (localUsedPercent >= 90 && !notified) {
+    setNotified(true);
+    sendBudgetNotification(
+      `You've used ${localUsedPercent}% of your monthly budget. Spend carefully 💸`
+    );
+  }
+}, [localUsedPercent, monthlyBudget, notified]);
+
+
+
+
+
+
+
 
   const { prevMonthYear, prevMonthIndex } = useMemo(() => {
     let y = selectedYear;
@@ -173,8 +244,11 @@ const usage =
         : monthTotal) / monthlyBudget
     : 0;
 
+ 
+
+
 // ✅ THEME SAFE budget color
-let budgetColor = colors.success;
+let budgetColor = "#16A34A";
 if (usage >= 0.9) budgetColor = colors.danger;
 else if (usage >= 0.5) budgetColor = colors.warning;
 
@@ -288,6 +362,68 @@ return (
         </View>
       </View>
 
+{showAlert && localUsedPercent >= 60 && (
+
+
+<View
+  style={{
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+
+    backgroundColor:
+      localUsedPercent >= 90 ? "#7C2D12" : "#78350F",
+
+    borderLeftColor:
+      localUsedPercent >= 90 ? "#EF4444" : "#F59E0B",
+  }}
+>
+
+    {/* Header row */}
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <Ionicons name="warning" size={20} color="#FDBA74" />
+        <Text
+          style={{
+            color: "#FFF7ED",
+            fontWeight: "700",
+            marginLeft: 8,
+          }}
+        >
+          Spending Alert
+        </Text>
+      </View>
+
+      {/* ❌ Close button */}
+      <TouchableOpacity onPress={() => setShowAlert(false)}>
+        <Ionicons name="close" size={20} color="#FED7AA" />
+      </TouchableOpacity>
+    </View>
+
+    {/* Message */}
+    <Text
+      style={{
+        color: "#FFEDD5",
+        marginTop: 6,
+        fontSize: 13,
+        lineHeight: 18,
+      }}
+    >
+     You’ve used {localUsedPercent}% of your monthly budget.
+
+    </Text>
+  </View>
+)}
+
+
+
       {/* EXPENSE SUMMARY CARD */}
       <Card style={[styles.card, styles.expenseCard]}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -357,6 +493,114 @@ return (
       </Card>
 
 
+      {/* 💰 BUDGET THIS MONTH */}
+<Card style={[styles.card, { marginBottom: 18 }]}>
+  <View
+    style={{
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 6,
+    }}
+  >
+    <Text style={{ color: colors.subText, fontSize: 13 }}>
+      Budget this month
+    </Text>
+
+    {/* ✏️ Edit budget */}
+    <TouchableOpacity onPress={() => setIsEditingBudget(true)}>
+      <Ionicons name="pencil" size={16} color={colors.subText} />
+    </TouchableOpacity>
+  </View>
+
+  {/* Budget value */}
+  <Text style={{ color: colors.text, fontSize: 22, fontWeight: "700" }}>
+    {monthlyBudget
+      ? `LKR ${monthlyBudget.toLocaleString("en-LK")}`
+      : "No budget set"}
+  </Text>
+
+  {/* Spent / Remaining */}
+  {monthlyBudget && (
+    <View
+      style={{
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginTop: 6,
+      }}
+    >
+      <Text style={{ color: colors.subText, fontSize: 12 }}>
+        Spent: LKR {selectedMonthTotal.toLocaleString("en-LK")}
+      </Text>
+      <Text style={{ color: colors.subText, fontSize: 12 }}>
+        Remaining: LKR{" "}
+        {Math.max(monthlyBudget - selectedMonthTotal, 0).toLocaleString(
+          "en-LK"
+        )}
+      </Text>
+    </View>
+  )}
+
+  {/* Progress bar */}
+  {monthlyBudget && (
+    <View
+      style={{
+        height: 8,
+        backgroundColor: colors.border,
+        borderRadius: 6,
+        marginTop: 10,
+        overflow: "hidden",
+      }}
+    >
+      <View
+        style={{
+          height: "100%",
+          width: `${Math.min(
+            (selectedMonthTotal / monthlyBudget) * 100,
+            100
+          )}%`,
+          backgroundColor: budgetColor,
+        }}
+      />
+    </View>
+  )}
+
+  {/* ✍️ Budget input */}
+  {isEditingBudget && (
+    <View style={{ marginTop: 12 }}>
+      <TextInput
+        placeholder="Enter monthly budget"
+        placeholderTextColor={colors.subText}
+        keyboardType="numeric"
+        value={budgetInput}
+        onChangeText={setBudgetInput}
+        style={{
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: 10,
+          padding: 10,
+          color: colors.text,
+          marginBottom: 8,
+        }}
+      />
+
+      <TouchableOpacity
+        onPress={handleSaveBudget}
+        style={{
+          backgroundColor: "#22C55E",
+          paddingVertical: 10,
+          borderRadius: 10,
+          alignItems: "center",
+        }}
+      >
+        <Text style={{ color: "#fff", fontWeight: "700" }}>Save Budget</Text>
+      </TouchableOpacity>
+    </View>
+  )}
+</Card>
+
+
+
         {/* QUICK ACTIONS */}
         <View style={styles.actionsContainer}>
           <TouchableOpacity style={styles.actionButton} onPress={() => router.push("/(tabs)/add-expense")}>
@@ -389,59 +633,102 @@ return (
         </View>
 
         {/* DAILY HABITS */}
-    <Text style={[styles.sectionTitle, { color: colors.text }]}>
-Daily Habits</Text>
-        <View style={styles.habitsList}>
-          {habits.map((habit) => {
-            const completedToday =
-  !!habit.lastCompletedDate &&
-  habit.lastCompletedDate === today &&
-  habit.streak > 0;
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+  Daily Habits
+</Text>
 
+<View style={styles.habitsList}>
+  {habits.map((habit) => {
+    const completedToday = habit.completedToday;
 
-            return (
-              <TouchableOpacity
-                key={habit.id}
-                style={styles.habitItem}
-                activeOpacity={0.85}
-                onPress={() => toggleHabitToday(habit.id)}
-                onLongPress={() =>
-                  Alert.alert("Delete habit?", `Are you sure you want to delete "${habit.title}"?`, [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Delete", style: "destructive", onPress: () => deleteHabit(habit.id) },
-                  ])
-                }
-                delayLongPress={500}
+    return (
+      <TouchableOpacity
+        key={habit.id}
+        style={styles.habitItem}
+        activeOpacity={0.85}
+        onPress={() => toggleHabitToday(habit.id)}
+        onLongPress={() =>
+          Alert.alert(
+            "Delete habit?",
+            `Are you sure you want to delete "${habit.title}"?`,
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Delete",
+                style: "destructive",
+                onPress: () => deleteHabit(habit.id),
+              },
+            ]
+          )
+        }
+        delayLongPress={500}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+          {/* LEFT ICON – SAME REALISTIC STYLE */}
+          <View
+            style={[
+              styles.habitIcon,
+              { backgroundColor: habit.color + "20" },
+            ]}
+          >
+            <Ionicons
+              name={(habit.icon as any) || "star"}
+              size={20}
+              color={habit.color}
+            />
+          </View>
+
+          {/* TITLE + STREAK + ML */}
+          <View style={styles.habitInfo}>
+            <Text style={styles.habitTitle}>{habit.title}</Text>
+
+            <Text style={styles.habitStreak}>
+              {habit.streak} day{habit.streak === 1 ? "" : "s"} streak{" "}
+              {completedToday ? "🔥" : ""}
+            </Text>
+
+            {/* 🔥 ML STATUS (THIS WAS MISSING) */}
+            {habit.ml?.habitType && (
+              <Text
+                style={{
+                  marginTop: 4,
+                  fontSize: 11,
+                  fontWeight: "600",
+                  color:
+                    habit.ml.habitType === "STRONG"
+                      ? "#22C55E"
+                      : habit.ml.habitType === "UNSTABLE"
+                      ? "#FACC15"
+                      : "#EF4444",
+                }}
               >
-                <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-                  <View style={[styles.habitIcon, { backgroundColor: habit.color + "20" }]}>
-                    <Ionicons name={(habit.icon as any) || "star"} size={20} color={habit.color} />
-                  </View>
-
-                  <View style={styles.habitInfo}>
-                    <Text style={styles.habitTitle}>{habit.title}</Text>
-                    <Text style={styles.habitStreak}>
-                      {habit.streak} day streak {completedToday ? "🔥" : ""}
-                    </Text>
-                  </View>
-                </View>
-
-                <View
-  style={[
-    styles.checkbox,
-    completedToday && {
-      backgroundColor: colors.success,
-      borderColor: colors.success,
-    },
-  ]}
->
-
-                  {completedToday && <Ionicons name="checkmark" size={16} color="white" />}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+                {habit.ml.habitType === "STRONG" && "🟢 Strong habit"}
+                {habit.ml.habitType === "UNSTABLE" && "🟡 Unstable habit"}
+                {habit.ml.habitType === "AT_RISK" && "🔴 At risk"}
+              </Text>
+            )}
+          </View>
         </View>
+
+        {/* CHECKBOX – SAME AS OLD */}
+        <View
+          style={[
+            styles.checkbox,
+            completedToday && {
+              backgroundColor: "#16A34A",
+              borderColor: "#16A34A",
+            },
+          ]}
+        >
+          {completedToday && (
+            <Ionicons name="checkmark" size={16} color="white" />
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  })}
+</View>
+
 
         {/* RECENT EXPENSES */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10, marginTop: 16 }}>

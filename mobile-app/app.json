@@ -10,6 +10,12 @@
     "scheme": "spendly",
     "userInterfaceStyle": "dark",
 
+    
+    "notification": {
+      "icon": "./assets/images/android-icon-monochrome.png",
+      "color": "#F97316"
+    },
+
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.spendly.app"

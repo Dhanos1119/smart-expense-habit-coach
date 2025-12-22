@@ -30,7 +30,7 @@ const LightColors = {
   border: "#E2E8F0",
 
   primary: "#2563EB",
-  success: "#16A34A",
+  success: "#0cc728ff",
   warning: "#F59E0B",
   danger: "#DC2626",
 };

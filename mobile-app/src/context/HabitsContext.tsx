@@ -14,8 +14,15 @@ export type Habit = {
   title: string;
   icon: string;
   color: string;
+
+  // ✅ BACKEND CALCULATED
   streak: number;
-  lastCompletedDate: string | null; // YYYY-MM-DD
+  completedToday: boolean;
+
+  // 🔮 ML prediction
+  ml?: {
+    habitType: "STRONG" | "UNSTABLE" | "AT_RISK";
+  };
 };
 
 type HabitsContextType = {
@@ -35,7 +42,7 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(false);
 
-  /* ---------- LOAD FROM BACKEND ---------- */
+  /* ---------- LOAD HABITS ---------- */
   async function refreshHabits() {
     if (!user) {
       setHabits([]);
@@ -45,6 +52,8 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       const res = await api.get("/api/habits");
+
+      // ✅ backend response is final truth
       setHabits(res.data);
     } catch (err) {
       console.error("❌ Failed to load habits", err);
@@ -57,29 +66,27 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
     refreshHabits();
   }, [user]);
 
-  /* ---------- TOGGLE (COMPLETE TODAY) ---------- */
-async function toggleHabitToday(id: number) {
-  try {
-    const habit = habits.find((h) => h.id === id);
-    if (!habit) return;
+  /* ---------- TOGGLE TODAY ---------- */
+  async function toggleHabitToday(id: number) {
+    try {
+      const habit = habits.find((h) => h.id === id);
+      if (!habit) return;
 
-    // 🔥 If already completed today → UNDO
-    if (habit.lastCompletedDate) {
-      await api.delete(`/api/habits/${id}/complete`);
-    } 
-    // 🔥 Else → COMPLETE
-    else {
-      await api.post(`/api/habits/${id}/complete`);
+      // ✅ NO DATE / STREAK LOGIC HERE
+      if (habit.completedToday) {
+        await api.delete(`/api/habits/${id}/complete`);
+      } else {
+        await api.post(`/api/habits/${id}/complete`);
+      }
+
+      // 🔄 re-fetch from backend
+      await refreshHabits();
+    } catch (err) {
+      console.error("❌ Toggle habit failed", err);
     }
-
-    await refreshHabits();
-  } catch (err) {
-    console.error("❌ Toggle habit failed", err);
   }
-}
 
-
-  /* ---------- ADD ---------- */
+  /* ---------- ADD HABIT ---------- */
   async function addHabit(input: { title: string }) {
     const title = input.title.trim();
     if (!title) return;
@@ -92,7 +99,7 @@ async function toggleHabitToday(id: number) {
     }
   }
 
-  /* ---------- DELETE ---------- */
+  /* ---------- DELETE HABIT ---------- */
   async function deleteHabit(id: number) {
     try {
       await api.delete(`/api/habits/${id}`);
