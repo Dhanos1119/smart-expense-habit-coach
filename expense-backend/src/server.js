@@ -13,57 +13,44 @@ import { PrismaClient } from "@prisma/client";
 import authRoutes from "./routes/auth.js";
 import expenseRoutes from "./routes/expenses.js";
 import userRoutes from "./routes/user.js";
-import habitsRoutes from "./routes/habits.routes.js";
+import habitsRoutes from "./routes/habits.routes.js"; // ✅ ONLY habits route
+import insightsRoutes from "./routes/insights.js";
 
 import { authenticateToken } from "./middleware/auth.js";
 
 const app = express();
 const prisma = new PrismaClient();
 
-/* -------------------------------------------------
-   MIDDLEWARE
-------------------------------------------------- */
+/* ---------------- MIDDLEWARE ---------------- */
 app.use(cors());
 app.use(express.json());
 
-/* -------------------------------------------------
-   ROUTES
-------------------------------------------------- */
+/* ---------------- ROUTES ---------------- */
 app.use("/api/auth", authRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/insights", insightsRoutes);
 
-/* 🔥 HABITS ROUTES */
+
+/* 🔥 HABITS (CRUD + streak + tick + ML) */
 app.use("/api/habits", habitsRoutes);
 console.log("✅ Habits routes mounted at /api/habits");
 
-/* -------------------------------------------------
-   HEALTH CHECK
-------------------------------------------------- */
-app.get("/health", (req, res) => {
-  res.send("OK");
-});
+/* ---------------- HEALTH ---------------- */
+app.get("/health", (req, res) => res.send("OK"));
 
-/* -------------------------------------------------
-   PATH FIX (ESM SAFE)
-------------------------------------------------- */
+/* ---------------- PATH FIX ---------------- */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-/* -------------------------------------------------
-   UPLOADS FOLDER
-------------------------------------------------- */
+/* ---------------- UPLOADS ---------------- */
 const uploadsDir = path.resolve(process.cwd(), "uploads");
-
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
-
 app.use("/uploads", express.static(uploadsDir));
 
-/* -------------------------------------------------
-   MULTER CONFIG
-------------------------------------------------- */
+/* ---------------- MULTER ---------------- */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadsDir),
   filename: (req, file, cb) => {
@@ -77,61 +64,42 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
-/* -------------------------------------------------
-   PROFILE IMAGE UPLOAD
-------------------------------------------------- */
+/* ---------------- AVATAR ---------------- */
 app.post(
   "/profile/upload-avatar",
   authenticateToken,
   upload.single("avatar"),
   async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: "No file received" });
-      }
+    if (!req.file) return res.status(400).json({ message: "No file" });
 
-      const avatarUrl = `/uploads/${req.file.filename}`;
+    const avatarUrl = `/uploads/${req.file.filename}`;
+    await prisma.user.update({
+      where: { id: Number(req.userId) },
+      data: { avatarUrl },
+    });
 
-      await prisma.user.update({
-        where: { id: Number(req.userId) },
-        data: { avatarUrl },
-      });
-
-      res.json({ avatarUrl });
-    } catch (err) {
-      console.error("Avatar upload error:", err);
-      res.status(500).json({ message: "Upload failed" });
-    }
+    res.json({ avatarUrl });
   }
 );
 
-/* -------------------------------------------------
-   GET LOGGED-IN USER
-------------------------------------------------- */
+/* ---------------- ME ---------------- */
 app.get("/api/me", authenticateToken, async (req, res) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: Number(req.userId) },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        createdAt: true,
-        avatarUrl: true,
-      },
-    });
+  const user = await prisma.user.findUnique({
+    where: { id: Number(req.userId) },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      createdAt: true,
+      avatarUrl: true,
+    },
+  });
 
-    if (!user) return res.status(404).json({ message: "User not found" });
-    res.json({ user });
-  } catch (err) {
-    console.error("/api/me error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
+  if (!user) return res.status(404).json({ message: "User not found" });
+  res.json({ user });
 });
 
-/* -------------------------------------------------
-   SERVER START
-------------------------------------------------- */
+/* ---------------- START ---------------- */
 const port = process.env.PORT || 4000;
 const server = app.listen(port, () =>
   console.log(`🚀 Server running on port ${port}`)
