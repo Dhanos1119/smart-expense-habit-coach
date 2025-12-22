@@ -1,0 +1,16 @@
+[
+  {
+    "currentStreak": 0,
+    "longestStreak": 3,
+    "completionRate30": 35,
+    "missCountLast7": 5,
+    "daysSinceLastDone": 4
+  },
+  {
+    "currentStreak": 4,
+    "longestStreak": 10,
+    "completionRate30": 85,
+    "missCountLast7": 0,
+    "daysSinceLastDone": 0
+  }
+]
